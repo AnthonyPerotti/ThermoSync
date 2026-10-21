@@ -34,20 +34,26 @@ jobs:
           Copy-Item LEIA-ME.txt dist/LEIA-ME.txt
           Compress-Archive -Path dist/ThermoSync.exe, dist/LEIA-ME.txt -DestinationPath ThermoSync.zip
 
-      - name: Atualizar release "latest"
+      - name: Sincronizar tag latest
         if: startsWith(github.ref, 'refs/heads/')
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $sha = "$env:GITHUB_SHA".Substring(0, 7)
-          gh release delete latest --cleanup-tag --yes
-          gh release create latest ThermoSync.zip dist/ThermoSync.exe --target $env:GITHUB_SHA --latest --title "THERMOSYNC (versao mais recente)" --notes-file CHANGELOG.md
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f latest $env:GITHUB_SHA
+          git push -f origin latest
 
-      - name: Release da versao (tag)
-        if: startsWith(github.ref, 'refs/tags/')
-        shell: pwsh
+      - name: Publicar Release no GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'latest' }}
+          name: ${{ startsWith(github.ref, 'refs/tags/') && format('THERMOSYNC {0}', github.ref_name) || 'THERMOSYNC (versao mais recente)' }}
+          body_path: CHANGELOG.md
+          prerelease: false
+          draft: false
+          make_latest: ${{ startsWith(github.ref, 'refs/tags/') && 'false' || 'true' }}
+          files: |
+            ThermoSync.zip
+            dist/ThermoSync.exe
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create $env:GITHUB_REF_NAME ThermoSync.zip dist/ThermoSync.exe --title "THERMOSYNC $env:GITHUB_REF_NAME" --generate-notes --latest=false
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
