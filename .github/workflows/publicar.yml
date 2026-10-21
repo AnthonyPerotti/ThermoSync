@@ -43,17 +43,31 @@ jobs:
           git tag -f latest $env:GITHUB_SHA
           git push -f origin latest
 
-      - name: Publicar Release no GitHub
+      - name: Publicar Release (Branch main -> latest)
+        if: startsWith(github.ref, 'refs/heads/')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'latest' }}
-          name: ${{ startsWith(github.ref, 'refs/tags/') && format('THERMOSYNC {0}', github.ref_name) || 'THERMOSYNC (versao mais recente)' }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: latest
+          name: "THERMOSYNC (versao mais recente)"
           body_path: CHANGELOG.md
           prerelease: false
           draft: false
-          make_latest: ${{ startsWith(github.ref, 'refs/tags/') && 'false' || 'true' }}
+          make_latest: true
           files: |
             ThermoSync.zip
             dist/ThermoSync.exe
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publicar Release (Tag de Versao)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: "THERMOSYNC ${{ github.ref_name }}"
+          body_path: CHANGELOG.md
+          prerelease: false
+          draft: false
+          make_latest: false
+          files: |
+            ThermoSync.zip
+            dist/ThermoSync.exe
