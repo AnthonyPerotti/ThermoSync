@@ -1,0 +1,23 @@
+# Build
+bin/
+obj/
+publish/
+ThermoSync-dist/
+*.exe
+*.dll
+*.pdb
+dist/
+
+# IDE
+.vs/
+.vscode/
+.agents/
+*.user
+*.suo
+
+# Local
+*.log
+
+# Embedded serial drivers (SYNC MAKER): signed package DLLs are intentionally tracked
+!Drivers/**
+

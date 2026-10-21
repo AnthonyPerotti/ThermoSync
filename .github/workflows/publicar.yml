@@ -1,0 +1,53 @@
+name: Publicar
+
+# A cada push na main, gera o ThermoSync.exe e atualiza a release "latest".
+# Ao criar uma tag (ex.: v1.0.0), gera tambem uma release fixa dessa versao.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publicar
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publicar (arquivo unico, com o .NET embutido)
+        run: dotnet publish ThermoSync.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -o dist -nologo
+
+      - name: Montar pacote
+        shell: pwsh
+        run: |
+          Copy-Item LEIA-ME.txt dist/LEIA-ME.txt
+          Compress-Archive -Path dist/ThermoSync.exe, dist/LEIA-ME.txt -DestinationPath ThermoSync.zip
+
+      - name: Atualizar release "latest"
+        if: startsWith(github.ref, 'refs/heads/')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $sha = "$env:GITHUB_SHA".Substring(0, 7)
+          gh release delete latest --cleanup-tag --yes
+          gh release create latest ThermoSync.zip dist/ThermoSync.exe --target $env:GITHUB_SHA --latest --title "THERMOSYNC (versao mais recente)" --notes-file CHANGELOG.md
+
+      - name: Release da versao (tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create $env:GITHUB_REF_NAME ThermoSync.zip dist/ThermoSync.exe --title "THERMOSYNC $env:GITHUB_REF_NAME" --generate-notes --latest=false

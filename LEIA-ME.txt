@@ -1,0 +1,26 @@
+THERMOSYNC
+===========
+
+Utilitario integrado de diagnostico, telemetria e otimizacao de hardware para Windows:
+- Informacoes completas do sistema (WMI, D3D12, NVML)
+- Monitoramento de sensores em tempo real (LibreHardwareMonitor)
+- Especificacoes e telemetria avancada de GPU (estilo GPU-Z)
+- Catalogo e estimativa de desempenho em jogos + detector de gargalo
+- Overlay de metricas em tempo real via ETW (DirectX / D3D9)
+- SYNC BENCH: benchmarks de CPU (path tracing), GPU (cena e ray tracing DXR 1.1), simulacao, memoria e disco
+- SYNC OC: controle de power limit, clocks e verificacao de estabilidade
+- SYNC OPTIMIZE: liberacao de memoria standby, ajuste de processos e configuracoes do Windows
+- SYNC TOOLS: inicializacao do sistema, instalador de apps essenciais via winget, saude S.M.A.R.T. de discos e teste de rede
+- SYNC MAKER: gerenciamento de portas COM e pacotes de drivers seriais (CH340, CP210x, FTDI, Arduino)
+- SYNC INTEGRATION: controle de iluminacao RGB via Corsair iCUE, OpenRGB e Razer Chroma
+
+REQUISITOS
+- Windows 10 ou 11 (64 bits). Nao requer instalacao previa do .NET runtime (executavel autocontido).
+- Para telemetria de temperatura e consumo de CPU, instale o driver PawnIO:
+      winget install namazso.PawnIO
+- Execute como Administrador (necessario para acesso aos registradores de hardware e contadores de desempenho).
+
+COMO USAR
+- Execute ThermoSync.exe.
+- Tecla de atalho do overlay: Ctrl + Shift + O.
+- Historico e configuracoes locais sao armazenados em %AppData%\ThermoSync.
