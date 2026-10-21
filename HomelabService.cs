@@ -186,11 +186,11 @@ public sealed class HomelabService : IDisposable
         void AppendGauge(string name, string help, double? val, string? labels = null)
         {
             if (!val.HasValue || double.IsNaN(val.Value) || double.IsInfinity(val.Value)) return;
-            sb.Append("# HELP ").Append(name).Append(' ').AppendLine(help);
-            sb.Append("# TYPE ").Append(name).AppendLine(" gauge");
+            sb.Append("# HELP ").Append(name).Append(' ').Append(help).Append('\n');
+            sb.Append("# TYPE ").Append(name).Append(" gauge\n");
             sb.Append(name);
             if (!string.IsNullOrEmpty(labels)) sb.Append('{').Append(labels).Append('}');
-            sb.Append(' ').AppendLine(val.Value.ToString("0.##", inv));
+            sb.Append(' ').Append(val.Value.ToString("0.##", inv)).Append('\n');
         }
 
         AppendGauge("thermosync_cpu_temperature_celsius", "Temperatura da CPU em graus Celsius", s.CpuTemp);
