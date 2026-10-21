@@ -1,5 +1,26 @@
 # Registro de Mudancas - ThermoSync
 
+## Versao 1.1.0
+
+### Integracao Homelab e Automacao
+- Novo exportador nativo Prometheus no endpoint `/metrics` (porta 9182) para coleta e dashboards no Grafana.
+- Publicador MQTT integrado (MQTT 3.1.1) com suporte a Home Assistant MQTT Auto-Discovery para criacao automatica de sensores no dashboard.
+- Painel de controle dedicado em SYNC INTEGRATION para ativacao, portas e brokers.
+
+### Exportacao de Relatorio em LaTeX
+- Novo formato de exportacao `.tex` utilizando `booktabs`, `tabularx` e `xcolor` para documentacao tecnica e academica de engenharia.
+- Manutencao integral dos formatos HTML e JSON existentes.
+
+### Correcao de Execucao do winget e Driver PawnIO
+- Implementada busca em cascata de caminhos absolutos do `winget.exe` (PATH, LocalAppData, UserProfile elevado e WindowsApps nativo).
+- Invocacao do winget com caminho absoluto no terminal, corrigindo o erro de comando nao reconhecido em ambientes elevados por UAC.
+- Adicionado fallback inteligente para download direto do instalador oficial no GitHub do PawnIO quando o winget nao estiver presente no sistema.
+
+### Otimizacao do Binario e Compilacao Limpa
+- Ativada compressao nativa Single-File no `ThermoSync.csproj`, reduzindo o tamanho do executavel de ~197 MB para ~65-85 MB.
+- Ajustado o script `publicar.bat` para gerar a distribuicao na pasta `dist\` dentro da raiz do projeto.
+- Corrigidos todos os avisos de nulidade estatica do compilador (CS8600, CS8621, CS8625, CS0649).
+
 ## Versao 1.0.0
 
 ### SYNC TOOLS - Inicializacao

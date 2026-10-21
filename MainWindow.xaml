@@ -937,6 +937,49 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- ===== HOMELAB & AUTOMAÇÃO ===== -->
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="HOMELAB &amp; AUTOMAÇÃO" Style="{StaticResource Label}"/>
+
+                                <TextBlock Text="Exportador Prometheus (/metrics)" FontSize="14" FontWeight="SemiBold" Margin="0,8,0,2"/>
+                                <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8">
+                                    Servidor HTTP nativo que expõe telemetria no padrão OpenMetrics para coleta pelo Prometheus e dashboards no Grafana.
+                                </TextBlock>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                    <CheckBox x:Name="ChkPrometheus" Content="Ativar Exportador" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                                    <TextBlock Text="Porta:" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" Margin="0,0,6,0"/>
+                                    <TextBox x:Name="TxtPrometheusPort" Width="60" Text="9182" VerticalAlignment="Center" Height="26" Padding="6,2"/>
+                                </StackPanel>
+                                <TextBlock x:Name="TxtPrometheusStatus" Text="Desativado" Foreground="{DynamicResource Muted}" Margin="0,2,0,10"/>
+
+                                <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,4,0,10" Padding="0,10,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="Publicador MQTT (Home Assistant / Node-RED)" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                                        <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8">
+                                            Publica métricas em JSON periodicamente em um broker MQTT local (Mosquitto/Home Assistant) para automações de homelab.
+                                        </TextBlock>
+                                        <WrapPanel Margin="0,0,0,6">
+                                            <CheckBox x:Name="ChkMqtt" Content="Ativar MQTT" VerticalAlignment="Center" Margin="0,0,16,6"/>
+                                            <CheckBox x:Name="ChkMqttDiscovery" Content="Auto-descoberta Home Assistant" VerticalAlignment="Center" Margin="0,0,16,6"/>
+                                        </WrapPanel>
+                                        <WrapPanel Margin="0,0,0,4">
+                                            <TextBlock Text="Broker IP:" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" Margin="0,0,6,0"/>
+                                            <TextBox x:Name="TxtMqttBroker" Width="130" Text="127.0.0.1" VerticalAlignment="Center" Height="26" Padding="6,2" Margin="0,0,12,0"/>
+                                            <TextBlock Text="Porta:" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" Margin="0,0,6,0"/>
+                                            <TextBox x:Name="TxtMqttPort" Width="55" Text="1883" VerticalAlignment="Center" Height="26" Padding="6,2" Margin="0,0,12,0"/>
+                                            <TextBlock Text="Tópico:" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" Margin="0,0,6,0"/>
+                                            <TextBox x:Name="TxtMqttTopic" Width="160" Text="thermosync/telemetry" VerticalAlignment="Center" Height="26" Padding="6,2"/>
+                                        </WrapPanel>
+                                        <TextBlock x:Name="TxtMqttStatus" Text="Desativado" Foreground="{DynamicResource Muted}" Margin="0,4,0,8"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Button x:Name="BtnApplyHomelab" Style="{StaticResource OutlineButton}" Content="APLICAR CONFIGURAÇÕES HOMELAB"
+                                        HorizontalAlignment="Left" Padding="18,8" Margin="0,4,0,0" Click="BtnApplyHomelab_Click"/>
+                            </StackPanel>
+                        </Border>
+
                         <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
                             <StackPanel>
                                 <TextBlock Text="DISPOSITIVOS" Style="{StaticResource Label}"/>

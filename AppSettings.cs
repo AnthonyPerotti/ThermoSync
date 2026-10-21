@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -75,6 +75,15 @@ public sealed class AppSettings
     public double OverlayScale { get; set; } = 1.0;
     /// <summary>Itens escolhidos para o overlay (chaves de OverlayMetrics); null = padrão.</summary>
     public List<string>? OverlayItems { get; set; }
+
+    // Homelab & Automação (Prometheus e MQTT)
+    public bool HomelabPrometheusEnabled { get; set; }
+    public int HomelabPrometheusPort { get; set; } = 9182;
+    public bool HomelabMqttEnabled { get; set; }
+    public string HomelabMqttBroker { get; set; } = "127.0.0.1";
+    public int HomelabMqttPort { get; set; } = 1883;
+    public string HomelabMqttTopic { get; set; } = "thermosync/telemetry";
+    public bool HomelabMqttDiscovery { get; set; } = true;
 
     [System.Text.Json.Serialization.JsonIgnore] // nunca gravar a chave em texto puro
     public string? HowManyFpsKey

@@ -1,4 +1,4 @@
-﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows;
 
@@ -16,9 +16,24 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            if (args.ExceptionObject is Exception ex)
+            {
+                MessageBox.Show("Erro fatal no ThermoSync:\n\n" + ex.Message + "\n\n" + ex.StackTrace,
+                                "ThermoSync - Erro Fatal", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        };
+        DispatcherUnhandledException += (_, args) =>
+        {
+            MessageBox.Show("Erro de execução no ThermoSync:\n\n" + args.Exception.Message + "\n\n" + args.Exception.StackTrace,
+                            "ThermoSync - Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+            args.Handled = true;
+        };
+
         bool first;
         try { _single = new Mutex(true, @"Local\ThermoSync.SingleInstance", out first); }
-        catch (UnauthorizedAccessException) { first = false; } // criado por outra instância com outro nível de permissão
+        catch (UnauthorizedAccessException) { first = false; }
 
         if (!first)
         {
@@ -27,9 +42,10 @@ public partial class App : Application
             {
                 if (IsIconic(h)) ShowWindow(h, 9); // SW_RESTORE
                 SetForegroundWindow(h);
+                Shutdown();
+                return;
             }
-            Shutdown();
-            return;
+            // Se a janela não existe (ex: processo anterior travado em segundo plano), prossegue normalmente
         }
         base.OnStartup(e);
         new MainWindow().Show();

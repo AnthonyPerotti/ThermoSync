@@ -14,6 +14,7 @@
     <!-- Always optimized: SYNC BENCH and stress tests need optimized JIT even in Debug -->
     <Optimize>true</Optimize>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
   </PropertyGroup>
 
   <ItemGroup>

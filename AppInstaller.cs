@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -56,10 +56,64 @@ public static class AppInstaller
         new() { Name = "VLC", Description = "Player de vídeo e música que abre qualquer formato.", WingetId = "VideoLAN.VLC", DisplayPrefix = "VLC media player" },
     };
 
-    public static string WingetPath =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\WindowsApps\winget.exe");
+    /// <summary>
+    /// Procura o executável do winget em cascata: PATH do ambiente, pasta de aliases do usuário,
+    /// pasta do perfil de usuário real (quando executado com elevação UAC) e pacote UWP nativo.
+    /// </summary>
+    public static string? FindWingetPath()
+    {
+        // 1. Diretórios no PATH
+        var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? "";
+        foreach (var dir in pathEnv.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            try
+            {
+                var candidate = Path.Combine(dir, "winget.exe");
+                if (File.Exists(candidate)) return candidate;
+            }
+            catch { }
+        }
 
-    public static bool WingetAvailable => File.Exists(WingetPath);
+        // 2. Pasta padrão de aliases do usuário atual (%LOCALAPPDATA%\Microsoft\WindowsApps)
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (!string.IsNullOrEmpty(localAppData))
+        {
+            var alias = Path.Combine(localAppData, @"Microsoft\WindowsApps\winget.exe");
+            if (File.Exists(alias)) return alias;
+        }
+
+        // 3. Pasta de perfil do usuário (%USERPROFILE%), caso rodando elevado como Administrador
+        var userProfile = Environment.GetEnvironmentVariable("USERPROFILE");
+        if (!string.IsNullOrEmpty(userProfile))
+        {
+            var userAlias = Path.Combine(userProfile, @"AppData\Local\Microsoft\WindowsApps\winget.exe");
+            if (File.Exists(userAlias)) return userAlias;
+        }
+
+        // 4. Instalação nativa em Program Files\WindowsApps
+        try
+        {
+            var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            var winApps = Path.Combine(programFiles, "WindowsApps");
+            if (Directory.Exists(winApps))
+            {
+                var dirs = Directory.GetDirectories(winApps, "Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe");
+                foreach (var d in dirs.OrderByDescending(x => x))
+                {
+                    var exe = Path.Combine(d, "winget.exe");
+                    if (File.Exists(exe)) return exe;
+                }
+            }
+        }
+        catch { }
+
+        return null;
+    }
+
+    public static string WingetPath =>
+        FindWingetPath() ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\WindowsApps\winget.exe");
+
+    public static bool WingetAvailable => FindWingetPath() != null;
 
     /// <summary>Nomes em "Aplicativos instalados" (máquina 64/32 bits e usuário atual).</summary>
     public static HashSet<string> InstalledNames()

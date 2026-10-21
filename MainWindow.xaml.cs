@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -40,6 +41,9 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _gameFetch;
     private string _cpuName = "", _gpuName = "";
     private double _cpuIdx = 80, _gpuIdx = 50;
+
+    // Homelab & Automação (Prometheus e MQTT)
+    private readonly HomelabService _homelab;
 
     // Gargalo + overlay
     public sealed record MeterItem(string Label, string Value, double Fraction);
@@ -98,8 +102,12 @@ public partial class MainWindow : Window
         TitlePage.Text = "Visão geral";
         UpdateDashboard();
 
-        // A janela aparece já; as coletas pesadas (WMI, sensores, GPU) rodam em paralelo fora da thread da janela.
-        Loaded += async (_, _) => await LoadHardwareAsync();
+        _homelab = new HomelabService(GetHomelabSnapshot);
+        Loaded += async (_, _) =>
+        {
+            await LoadHardwareAsync();
+            _homelab.ApplySettings(_settings);
+        };
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) =>
@@ -135,6 +143,7 @@ public partial class MainWindow : Window
             _frames.Dispose();
             UnregisterHotKey(new System.Windows.Interop.WindowInteropHelper(this).Handle, HotkeyId);
             ShutdownInteg();
+            _homelab.Dispose();
             _launchCts?.Cancel();
             _monitor.Dispose();
         };
@@ -217,26 +226,44 @@ public partial class MainWindow : Window
             return;
         }
 
-        // winget vem com o Windows 11 e com o Windows 10 atualizado (App Installer).
-        string winget = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                                               @"Microsoft\WindowsApps\winget.exe");
-        if (!System.IO.File.Exists(winget))
+        string? winget = AppInstaller.FindWingetPath();
+        if (winget == null)
         {
-            MessageBox.Show(why + "\n\nO instalador de pacotes do Windows (winget) não foi encontrado neste PC. " +
-                            "Atualize o \"Instalador de Aplicativo\" pela Microsoft Store e use o botão de novo, " +
-                            "ou instale o PawnIO (autor: namazso) manualmente.",
-                            "THERMOSYNC", MessageBoxButton.OK, MessageBoxImage.Warning);
+            var choice = MessageBox.Show(why + "\n\nO instalador de pacotes do Windows (winget) não foi encontrado neste PC.\n\n" +
+                            "Deseja abrir a página oficial de releases do PawnIO no GitHub para baixar o instalador diretamente?\n\n" +
+                            "[Sim] Abrir GitHub oficial do PawnIO\n[Não] Tentar abrir a Microsoft Store",
+                            "THERMOSYNC", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+            if (choice == MessageBoxResult.Yes)
+            {
+                try { Process.Start(new ProcessStartInfo("https://github.com/namazso/PawnIO/releases") { UseShellExecute = true }); } catch { }
+            }
+            else if (choice == MessageBoxResult.No)
+            {
+                try { Process.Start(new ProcessStartInfo("ms-windows-store://pdp/?ProductId=9NBLGGH4NNS1") { UseShellExecute = true }); } catch { }
+            }
             return;
         }
 
-        var r = MessageBox.Show(why + "\n\nInstalar o PawnIO agora? Vai abrir uma janela com o instalador do Windows (winget). " +
+        var r = MessageBox.Show(why + "\n\nInstalar o PawnIO agora via winget?\n" +
                                 "Quando terminar, feche o THERMOSYNC e abra de novo.",
                                 "THERMOSYNC", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (r != MessageBoxResult.Yes) return;
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe",
-            "/k winget install --id namazso.PawnIO -e --accept-package-agreements --accept-source-agreements" +
-            " && echo. && echo Pronto! Feche esta janela e reabra o THERMOSYNC.")
-        { UseShellExecute = true });
+
+        // Invocamos com caminho absoluto via PowerShell para garantir execução em ambiente elevado
+        var psCmd = $"& '{winget}' install --id namazso.PawnIO -e --accept-package-agreements --accept-source-agreements; " +
+                    "Write-Host ''; Write-Host 'Pronto! Feche esta janela e reabra o THERMOSYNC.' -ForegroundColor Green";
+        try
+        {
+            Process.Start(new ProcessStartInfo("powershell.exe", $"-NoExit -ExecutionPolicy Bypass -Command \"{psCmd}\"")
+            { UseShellExecute = true });
+        }
+        catch
+        {
+            // Fallback para CMD com o caminho completo do executável
+            Process.Start(new ProcessStartInfo("cmd.exe",
+                $"/k \"\"{winget}\" install --id namazso.PawnIO -e --accept-package-agreements --accept-source-agreements && echo. && echo Pronto! Feche esta janela e reabra o THERMOSYNC.\"")
+            { UseShellExecute = true });
+        }
     }
 
     // ---------------- Janela / navegação ----------------
@@ -1682,5 +1709,86 @@ public partial class MainWindow : Window
         }
         Series(_gpuTempHistory, Muted, fill: false);
         Series(_tempHistory, Fg, fill: true);
+    }
+
+    /// <summary>Gera o snapshot atualizado de telemetria para o exportador Prometheus e MQTT.</summary>
+    private HomelabSnapshot GetHomelabSnapshot()
+    {
+        float? cpuTemp = _monitor.CpuTemperature;
+        float? cpuLoad = _monitor.CpuLoad;
+        float? cpuPower = _monitor.CpuPower;
+        float? gTemp = MainGpuTemp();
+        float? gPower = MainGpuPower();
+
+        double? gHotspot = null;
+        double? gLoad = null;
+        double? gVramTotal = null;
+        double? gFan = null;
+
+        if (_gpus.Count > 0)
+        {
+            var g = _gpus[0];
+            var gRows = _monitor.Rows.Where(r => r.Hardware == g.Name).ToList();
+            gHotspot = gRows.FirstOrDefault(r => r.Name.Contains("Hot Spot", StringComparison.OrdinalIgnoreCase) || r.Name.Contains("Hotspot", StringComparison.OrdinalIgnoreCase))?.RawValue;
+            gLoad = gRows.FirstOrDefault(r => r.Type == SensorType.Load && r.Name.Contains("Core"))?.RawValue;
+            gFan = gRows.FirstOrDefault(r => r.Type == SensorType.Fan || r.Type == SensorType.Control)?.RawValue;
+            if (g.VramBytes > 0)
+            {
+                gVramTotal = (double)g.VramBytes / (1024.0 * 1024.0);
+            }
+        }
+
+        double? ramUsed = null;
+        double? ramTotal = null;
+        var (osMemTotal, osMemAvail) = Optimizer.MemoryStatus();
+        if (osMemTotal > 0)
+        {
+            ramUsed = (double)(osMemTotal - osMemAvail) / (1024.0 * 1024.0 * 1024.0);
+            ramTotal = (double)osMemTotal / (1024.0 * 1024.0 * 1024.0);
+        }
+        else
+        {
+            var ramUsedRow = _monitor.Rows.FirstOrDefault(r => r.HardwareType == HardwareType.Memory &&
+                                                              !r.Hardware.Contains("Virtual", StringComparison.OrdinalIgnoreCase) &&
+                                                              r.Type == SensorType.Data &&
+                                                              r.Name.Contains("Used"));
+            var ramAvailRow = _monitor.Rows.FirstOrDefault(r => r.HardwareType == HardwareType.Memory &&
+                                                               !r.Hardware.Contains("Virtual", StringComparison.OrdinalIgnoreCase) &&
+                                                               r.Type == SensorType.Data &&
+                                                               r.Name.Contains("Available"));
+            if (ramUsedRow?.RawValue is float ru)
+            {
+                ramUsed = ru;
+                if (ramAvailRow?.RawValue is float ra) ramTotal = ru + ra;
+            }
+        }
+
+        string? game = null;
+        double? fps = null;
+        double? ftMs = null;
+        if (_frames.Running && _frames.GetForegroundStats() is FrameStats fs)
+        {
+            game = fs.ProcessName;
+            fps = fs.Fps;
+            ftMs = fs.FrameTimeMs;
+        }
+
+        return new HomelabSnapshot
+        {
+            CpuTemp = cpuTemp,
+            CpuLoad = cpuLoad,
+            CpuPowerW = cpuPower,
+            GpuTemp = gTemp,
+            GpuHotspot = gHotspot,
+            GpuLoad = gLoad,
+            GpuPowerW = gPower,
+            GpuVramTotalMb = gVramTotal,
+            GpuFanPct = gFan,
+            RamUsedGb = ramUsed,
+            RamTotalGb = ramTotal,
+            ActiveGame = game,
+            Fps = fps,
+            FrametimeMs = ftMs,
+        };
     }
 }

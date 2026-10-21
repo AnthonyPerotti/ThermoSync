@@ -1,4 +1,4 @@
-﻿using System.Management;
+using System.Management;
 using System.Text.RegularExpressions;
 using LibreHardwareMonitor.Hardware;
 
@@ -49,7 +49,6 @@ public static class DiskHealth
         public long? PowerOnHours, ReadErr, WriteErr, ReadErrUncorrected, WriteErrUncorrected, StartStop;
         public double? WrittenGb, ReadGb;
         public string Letters = "";
-        public string? Error;
     }
 
     public static List<DiskHealthCard> Read(IEnumerable<SensorRow>? sensors = null)

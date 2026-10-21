@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Text;
 using System.Text.Json;
 
@@ -153,6 +153,210 @@ public static class ReportBuilder
             else sb.Append($"<tr><td class=\"k\">{E(n.Name)}</td><td>{E(n.Value)}</td></tr>");
         }
         sb.Append("</table>");
+    }
+
+    /// <summary>Gera o relatório em formato LaTeX (.tex) estruturado com booktabs e tabularx.</summary>
+    public static string Latex(ReportData d)
+    {
+        var sb = new StringBuilder(32 * 1024);
+        sb.AppendLine(@"\documentclass[11pt,a4paper]{article}");
+        sb.AppendLine(@"\usepackage[utf8]{inputenc}");
+        sb.AppendLine(@"\usepackage[T1]{fontenc}");
+        sb.AppendLine(@"\usepackage{lmodern}");
+        sb.AppendLine(@"\usepackage[margin=2cm]{geometry}");
+        sb.AppendLine(@"\usepackage{booktabs}");
+        sb.AppendLine(@"\usepackage{tabularx}");
+        sb.AppendLine(@"\usepackage{xcolor}");
+        sb.AppendLine(@"\usepackage{microtype}");
+        sb.AppendLine(@"\usepackage{hyperref}");
+        sb.AppendLine();
+        sb.AppendLine(@"\hypersetup{colorlinks=true,linkcolor=blue!70!black,urlcolor=blue!70!black}");
+        sb.AppendLine();
+        sb.Append(@"\title{\textbf{ThermoSync -- Relatório de Diagnóstico de Hardware}}").AppendLine();
+        sb.Append(@"\author{Computador: \texttt{").Append(TexEscape(d.Machine)).Append(@"}}").AppendLine();
+        sb.Append(@"\date{").Append(d.Date.ToString("dd/MM/yyyy HH:mm"));
+        if (!string.IsNullOrEmpty(d.AppVersion))
+        {
+            sb.Append(" -- v").Append(TexEscape(d.AppVersion));
+        }
+        sb.Append(@"}").AppendLine();
+        sb.AppendLine();
+        sb.AppendLine(@"\begin{document}");
+        sb.AppendLine(@"\maketitle");
+        sb.AppendLine(@"\noindent\small\textit{Nota: Números de série foram omitidos por privacidade.}\normalsize\vspace{1em}");
+        sb.AppendLine();
+
+        if (d.Disks.Count > 0)
+        {
+            sb.AppendLine(@"\section{Saúde dos Discos e Armazenamento}");
+            foreach (var disk in d.Disks)
+            {
+                sb.Append(@"\subsection*{").Append(TexEscape(disk.Name)).Append(@" -- \textbf{").Append(TexEscape(disk.Verdict)).Append(@"}}").AppendLine();
+                if (!string.IsNullOrEmpty(disk.Details))
+                    sb.Append(@"\noindent\small\textit{").Append(TexEscape(disk.Details)).Append(@"}\normalsize\par").AppendLine();
+                if (!string.IsNullOrEmpty(disk.Reasons))
+                    sb.Append(@"\noindent ").Append(TexEscape(disk.Reasons)).Append(@"\par\vspace{0.5em}").AppendLine();
+                if (disk.Metrics.Count > 0)
+                {
+                    sb.AppendLine(@"\begin{tabularx}{\textwidth}{lX}");
+                    sb.AppendLine(@"\toprule");
+                    sb.AppendLine(@"\textbf{Métrica} & \textbf{Valor} \\");
+                    sb.AppendLine(@"\midrule");
+                    foreach (var m in disk.Metrics)
+                    {
+                        sb.Append(TexEscape(m.Key)).Append(@" & ").Append(TexEscape(m.Value)).AppendLine(@" \\");
+                    }
+                    sb.AppendLine(@"\bottomrule");
+                    sb.AppendLine(@"\end{tabularx}\vspace{1em}");
+                }
+            }
+        }
+
+        if (d.Power.Count > 0)
+        {
+            sb.AppendLine(@"\section{Bateria e Energia}");
+            foreach (var p in d.Power)
+            {
+                sb.Append(@"\subsection*{").Append(TexEscape(p.Name)).Append(@" -- \textbf{").Append(TexEscape(p.Verdict)).Append(@"}}").AppendLine();
+                if (!string.IsNullOrEmpty(p.Details))
+                    sb.Append(@"\noindent\small\textit{").Append(TexEscape(p.Details)).Append(@"}\normalsize\par").AppendLine();
+                if (!string.IsNullOrEmpty(p.Reasons))
+                    sb.Append(@"\noindent ").Append(TexEscape(p.Reasons)).Append(@"\par\vspace{0.5em}").AppendLine();
+                if (p.Metrics.Count > 0)
+                {
+                    sb.AppendLine(@"\begin{tabularx}{\textwidth}{lX}");
+                    sb.AppendLine(@"\toprule");
+                    sb.AppendLine(@"\textbf{Parâmetro} & \textbf{Valor} \\");
+                    sb.AppendLine(@"\midrule");
+                    foreach (var m in p.Metrics)
+                    {
+                        sb.Append(TexEscape(m.Key)).Append(@" & ").Append(TexEscape(m.Value)).AppendLine(@" \\");
+                    }
+                    sb.AppendLine(@"\bottomrule");
+                    sb.AppendLine(@"\end{tabularx}\vspace{1em}");
+                }
+            }
+        }
+
+        if (d.Network.Count > 0)
+        {
+            sb.AppendLine(@"\section{Diagnóstico de Rede}");
+            foreach (var net in d.Network)
+            {
+                sb.Append(@"\subsection*{").Append(TexEscape(net.Name)).Append(@" -- \textbf{").Append(TexEscape(net.Verdict)).Append(@"}}").AppendLine();
+                if (!string.IsNullOrEmpty(net.Details))
+                    sb.Append(@"\noindent\small\textit{").Append(TexEscape(net.Details)).Append(@"}\normalsize\par").AppendLine();
+                if (!string.IsNullOrEmpty(net.Reasons))
+                    sb.Append(@"\noindent ").Append(TexEscape(net.Reasons)).Append(@"\par\vspace{0.5em}").AppendLine();
+                if (net.Metrics.Count > 0)
+                {
+                    sb.AppendLine(@"\begin{tabularx}{\textwidth}{lX}");
+                    sb.AppendLine(@"\toprule");
+                    sb.AppendLine(@"\textbf{Métrica} & \textbf{Valor} \\");
+                    sb.AppendLine(@"\midrule");
+                    foreach (var m in net.Metrics)
+                    {
+                        sb.Append(TexEscape(m.Key)).Append(@" & ").Append(TexEscape(m.Value)).AppendLine(@" \\");
+                    }
+                    sb.AppendLine(@"\bottomrule");
+                    sb.AppendLine(@"\end{tabularx}\vspace{1em}");
+                }
+            }
+        }
+
+        if (d.System.Count > 0)
+        {
+            sb.AppendLine(@"\section{Especificações do Sistema}");
+            foreach (var n in d.System)
+            {
+                sb.Append(@"\subsection*{").Append(TexEscape(n.Name)).Append(@"}").AppendLine();
+                if (n.Children != null && n.Children.Count > 0)
+                {
+                    sb.AppendLine(@"\begin{tabularx}{\textwidth}{lX}");
+                    sb.AppendLine(@"\toprule");
+                    TexTree(sb, n.Children);
+                    sb.AppendLine(@"\bottomrule");
+                    sb.AppendLine(@"\end{tabularx}\vspace{1em}");
+                }
+            }
+        }
+
+        if (d.Gpus.Count > 0)
+        {
+            sb.AppendLine(@"\section{Placas de Vídeo (GPU)}");
+            foreach (var g in d.Gpus)
+            {
+                sb.Append(@"\subsection*{").Append(TexEscape(g.Name)).Append(@"}").AppendLine();
+                if (!string.IsNullOrEmpty(g.Subtitle))
+                    sb.Append(@"\noindent\small\textit{").Append(TexEscape(g.Subtitle)).Append(@"}\normalsize\par\vspace{0.5em}").AppendLine();
+                foreach (var s in g.Sections)
+                {
+                    sb.Append(@"\subsubsection*{").Append(TexEscape(s.Name)).Append(@"}").AppendLine();
+                    if (s.Children != null && s.Children.Count > 0)
+                    {
+                        sb.AppendLine(@"\begin{tabularx}{\textwidth}{lX}");
+                        sb.AppendLine(@"\toprule");
+                        TexTree(sb, s.Children);
+                        sb.AppendLine(@"\bottomrule");
+                        sb.AppendLine(@"\end{tabularx}\vspace{1em}");
+                    }
+                }
+            }
+        }
+
+        if (d.Benchmarks.Count > 0)
+        {
+            sb.AppendLine(@"\section{Histórico de Benchmarks}");
+            sb.AppendLine(@"\begin{tabularx}{\textwidth}{llX}");
+            sb.AppendLine(@"\toprule");
+            sb.AppendLine(@"\textbf{Data} & \textbf{Teste} & \textbf{Resultado} \\");
+            sb.AppendLine(@"\midrule");
+            foreach (var b in d.Benchmarks)
+            {
+                sb.Append(b.Date.ToString("dd/MM/yyyy HH:mm")).Append(@" & ")
+                  .Append(TexEscape(b.Test)).Append(@" & ")
+                  .Append(TexEscape(b.Summary)).AppendLine(@" \\");
+            }
+            sb.AppendLine(@"\bottomrule");
+            sb.AppendLine(@"\end{tabularx}\vspace{1em}");
+        }
+
+        sb.AppendLine(@"\end{document}");
+        return sb.ToString();
+    }
+
+    private static void TexTree(StringBuilder sb, List<ReportNode>? nodes)
+    {
+        if (nodes == null) return;
+        foreach (var n in nodes)
+        {
+            if (n.Children != null && n.Children.Count > 0)
+            {
+                sb.Append(@"\multicolumn{2}{l}{\textbf{").Append(TexEscape(n.Name)).AppendLine(@"}} \\");
+                TexTree(sb, n.Children);
+            }
+            else
+            {
+                string val = n.Value ?? string.Empty;
+                sb.Append(TexEscape(n.Name)).Append(@" & ").Append(TexEscape(val)).AppendLine(@" \\");
+            }
+        }
+    }
+
+    private static string TexEscape(string? s)
+    {
+        if (string.IsNullOrEmpty(s)) return string.Empty;
+        return s
+            .Replace(@"\", @"\textbackslash{}")
+            .Replace("&", @"\&")
+            .Replace("%", @"\%")
+            .Replace("$", @"\$")
+            .Replace("#", @"\#")
+            .Replace("_", @"\_")
+            .Replace("{", @"\{")
+            .Replace("}", @"\}")
+            .Replace("~", @"\textasciitilde{}")
+            .Replace("^", @"\textasciicircum{}");
     }
 
     private const string Css = @"

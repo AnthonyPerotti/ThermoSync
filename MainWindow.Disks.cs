@@ -133,13 +133,13 @@ public partial class MainWindow
         var dlg = new Microsoft.Win32.SaveFileDialog
         {
             Title = "Exportar relatório",
-            Filter = "Relatório HTML (*.html)|*.html|Dados JSON (*.json)|*.json",
+            Filter = "Relatório HTML (*.html)|*.html|Dados JSON (*.json)|*.json|Documento LaTeX (*.tex)|*.tex",
             DefaultExt = ".html",
             FileName = $"THERMOSYNC-relatorio-{DateTime.Now:yyyyMMdd-HHmm}",
         };
         if (dlg.ShowDialog(this) != true) return;
         string path = dlg.FileName;
-        bool json = string.Equals(Path.GetExtension(path), ".json", StringComparison.OrdinalIgnoreCase);
+        string ext = Path.GetExtension(path);
 
         BtnReport.IsEnabled = false;
         BtnReport.Content = "GERANDO…";
@@ -167,7 +167,11 @@ public partial class MainWindow
             if (_lastNet != null)
                 data.Network.AddRange(_lastNet.Select(d => new ReportDisk(d.Title, d.Meta, d.VerdictText, d.Reasons, d.Metrics)));
 
-            string text = json ? ReportBuilder.Json(data) : ReportBuilder.Html(data);
+            string text = ext.Equals(".json", StringComparison.OrdinalIgnoreCase)
+                ? ReportBuilder.Json(data)
+                : ext.Equals(".tex", StringComparison.OrdinalIgnoreCase)
+                    ? ReportBuilder.Latex(data)
+                    : ReportBuilder.Html(data);
             await File.WriteAllTextAsync(path, text, new UTF8Encoding(true));
 
             SystemSub.Text = $"Relatório salvo em {path}";

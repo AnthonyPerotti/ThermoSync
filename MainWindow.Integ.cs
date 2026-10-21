@@ -58,6 +58,7 @@ public partial class MainWindow
     {
         if (_lightInited) return;
         _lightInited = true;
+        InitHomelabUi();
         foreach (var (name, r, g, b) in Swatches)
         {
             var btn = new Button
@@ -478,6 +479,58 @@ public partial class MainWindow
             }
             if (err != 0 && err != _lastLightError) LightRunHint.Text = $"{vm.Name}: {d.Backend.ErrorText(err)}";
             _lastLightError = err;
+        }
+    }
+
+    private void InitHomelabUi()
+    {
+        ChkPrometheus.IsChecked = _settings.HomelabPrometheusEnabled;
+        TxtPrometheusPort.Text = _settings.HomelabPrometheusPort.ToString();
+        ChkMqtt.IsChecked = _settings.HomelabMqttEnabled;
+        TxtMqttBroker.Text = _settings.HomelabMqttBroker;
+        TxtMqttPort.Text = _settings.HomelabMqttPort.ToString();
+        TxtMqttTopic.Text = _settings.HomelabMqttTopic;
+        ChkMqttDiscovery.IsChecked = _settings.HomelabMqttDiscovery;
+        UpdateHomelabStatus();
+    }
+
+    private void BtnApplyHomelab_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.HomelabPrometheusEnabled = ChkPrometheus.IsChecked == true;
+        if (int.TryParse(TxtPrometheusPort.Text.Trim(), out int pPort) && pPort > 0 && pPort < 65536)
+            _settings.HomelabPrometheusPort = pPort;
+
+        _settings.HomelabMqttEnabled = ChkMqtt.IsChecked == true;
+        _settings.HomelabMqttBroker = string.IsNullOrWhiteSpace(TxtMqttBroker.Text) ? "127.0.0.1" : TxtMqttBroker.Text.Trim();
+        if (int.TryParse(TxtMqttPort.Text.Trim(), out int mPort) && mPort > 0 && mPort < 65536)
+            _settings.HomelabMqttPort = mPort;
+        _settings.HomelabMqttTopic = string.IsNullOrWhiteSpace(TxtMqttTopic.Text) ? "thermosync/telemetry" : TxtMqttTopic.Text.Trim();
+        _settings.HomelabMqttDiscovery = ChkMqttDiscovery.IsChecked == true;
+
+        _settings.Save();
+        _homelab.ApplySettings(_settings);
+        UpdateHomelabStatus();
+    }
+
+    private void UpdateHomelabStatus()
+    {
+        if (TxtPrometheusStatus != null)
+        {
+            if (_homelab.PrometheusRunning)
+                TxtPrometheusStatus.Text = $"Ativo: {_homelab.PrometheusUrl}";
+            else if (_homelab.PrometheusError != null)
+                TxtPrometheusStatus.Text = $"Erro: {_homelab.PrometheusError}";
+            else
+                TxtPrometheusStatus.Text = _settings.HomelabPrometheusEnabled ? "Iniciando…" : "Desativado";
+        }
+        if (TxtMqttStatus != null)
+        {
+            if (_homelab.MqttConnected)
+                TxtMqttStatus.Text = $"Conectado a {_settings.HomelabMqttBroker}:{_settings.HomelabMqttPort} (tópico: {_settings.HomelabMqttTopic})";
+            else if (_homelab.MqttError != null)
+                TxtMqttStatus.Text = $"Erro: {_homelab.MqttError}";
+            else
+                TxtMqttStatus.Text = _settings.HomelabMqttEnabled ? "Conectando…" : "Desativado";
         }
     }
 }

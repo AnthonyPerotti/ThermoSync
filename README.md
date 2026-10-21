@@ -28,7 +28,8 @@ O software divide suas funcoes em modulos especializados:
 - **Gerenciamento de Memoria (`Optimizer.cs`):** Chamadas diretas as APIs nativas do Windows (`NtSetSystemInformation` e esvaziamento de Working Set) para liberacao de listas de paginas em espera (Standby List) e processos ociosos.
 - **Ajustes de Sistema Operacional (`WindowsTweaks.cs`):** Controle de chaves de registro para ativacao de Hardware Accelerated GPU Scheduling (HAGS), Game Mode, desativacao de Game DVR e ajuste de fila de resposta de entrada do mouse.
 - **Inicializacao do Windows (`StartupManager.cs`):** Analise e modificacao de registros de inicializacao automatica em HKLM e HKCU com capacidade de reversao.
-- **Instalador de Aplicativos (`AppInstaller.cs`):** Automacao de instalacao via Windows Package Manager (winget).
+- **Instalador de Aplicativos (`AppInstaller.cs`):** Automacao de instalacao via Windows Package Manager (winget) com resolucao de caminhos absolutos e suporte a instalacao sem conexao.
+- **Relatorios de Diagnostico (`ReportBuilder.cs`):** Exportacao em HTML visual com graficos, JSON para integracao automatizada e codigo LaTeX profissional estruturado com booktabs e tabularx.
 
 ### 5. Suporte a Prototipagem e Embarcados (SYNC MAKER)
 - **Gerenciamento de Portas Seriais (`UsbCleaner.cs`, `MakerDrivers.cs`):** Limpeza de entradas orfas no banco de dados de portas de comunicacao (ComDB) e diagnostico de controladores comuns (CH340, CP2102, FTDI, Prolific).
@@ -36,6 +37,10 @@ O software divide suas funcoes em modulos especializados:
 
 ### 6. Integracao de Iluminacao RGB (SYNC INTEGRATION)
 - **Controle Unificado (`LightBackends.cs`, `CorsairSdk.cs`):** Camada de abstracao para sincronizacao de iluminacao compativel com Corsair iCUE SDK, clientes locais OpenRGB e Razer Chroma REST API.
+
+### 7. Integracao Homelab e Automacao (`HomelabService.cs`)
+- **Exportador Prometheus (/metrics):** Servidor HTTP interno assincrono expondo telemetria completa em formato OpenMetrics na porta 9182 (temperaturas, consumo elétrico, clock, uso de VRAM/RAM, saude de disco e FPS de jogos) para Grafana.
+- **Publicador MQTT:** Cliente TCP leve compativel com MQTT 3.1.1 para envio de telemetria periodica ao broker da rede local (Mosquitto), com suporte a Home Assistant MQTT Auto-Discovery.
 
 ## Requisitos do Sistema
 
@@ -86,6 +91,7 @@ ThermoSync/
 ├── *Bench.cs                # Modulos de testes de desempenho
 ├── SensorMonitor.cs         # Monitor de telemetria de sensores
 ├── Optimizer.cs             # Servico de limpeza de memoria e processos
+├── HomelabService.cs        # Servico Prometheus exporter e publicador MQTT
 └── ThermoSync.csproj        # Definicoes de projeto e dependencias NuGet
 ```
 
