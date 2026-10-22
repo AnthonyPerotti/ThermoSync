@@ -45,17 +45,32 @@ jobs:
           git tag -f latest $env:GITHUB_SHA
           git push -f origin latest
 
-      - name: Publicar Release (Branch main -> latest)
+      - name: Publicar Release (Branch main -> versao e latest)
         if: startsWith(github.ref, 'refs/heads/')
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          [xml]$xml = Get-Content ThermoSync.csproj
+          $ver = $xml.Project.PropertyGroup.Version.Trim()
+          $vTag = "v$ver"
+          Write-Host "Publicando versao $vTag..."
+
+          # 1. Criar ou atualizar a release individual da versao
+          if (gh release view $vTag 2>$null) {
+            Write-Host "Release $vTag ja existe. Atualizando artefatos..."
+            gh release upload $vTag dist/ThermoSync.exe ThermoSync.zip --clobber
+          } else {
+            Write-Host "Criando nova release $vTag..."
+            gh release create $vTag dist/ThermoSync.exe ThermoSync.zip --title "THERMOSYNC $vTag" --notes-file CHANGELOG.md
+          }
+
+          # 2. Atualizar tambem a release rolling 'latest'
           if (gh release view latest 2>$null) {
-            gh release edit latest --title "THERMOSYNC (versao mais recente)" --notes-file CHANGELOG.md
+            gh release edit latest --title "THERMOSYNC (versao mais recente: $vTag)" --notes-file CHANGELOG.md
             gh release upload latest dist/ThermoSync.exe ThermoSync.zip --clobber
           } else {
-            gh release create latest dist/ThermoSync.exe ThermoSync.zip --title "THERMOSYNC (versao mais recente)" --notes-file CHANGELOG.md
+            gh release create latest dist/ThermoSync.exe ThermoSync.zip --title "THERMOSYNC (versao mais recente: $vTag)" --notes-file CHANGELOG.md
           }
 
       - name: Publicar Release (Tag de Versao)

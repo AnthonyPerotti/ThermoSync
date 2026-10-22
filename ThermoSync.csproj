@@ -10,7 +10,7 @@
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <AssemblyName>ThermoSync</AssemblyName>
     <Product>THERMOSYNC</Product>
-    <Version>1.2.1</Version>
+    <Version>1.2.2</Version>
     <!-- Always optimized: SYNC BENCH and stress tests need optimized JIT even in Debug -->
     <Optimize>true</Optimize>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

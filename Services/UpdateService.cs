@@ -65,8 +65,22 @@ public sealed class UpdateService
             string cleanTag = tagName.TrimStart('v', 'V').Trim();
             if (!Version.TryParse(cleanTag, out var remoteVer))
             {
-                // In case tag is 'latest' or unversioned, check if target commit differs or fallback
-                return new UpdateCheckResult(false, currentVerStr, tagName, null, 0, body);
+                // Fallback: se tag for 'latest' ou sem versao numerica direta, extrair do titulo da release ou do corpo do changelog
+                string releaseTitle = root.TryGetProperty("name", out var nameProp) ? nameProp.GetString() ?? "" : "";
+                var match = System.Text.RegularExpressions.Regex.Match(
+                    $"{releaseTitle}\n{body}",
+                    @"(?:Vers[aã]o(?:\s+mais\s+recente:\s*v?)?|v)\s*(\d+\.\d+(?:\.\d+)?)",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                if (match.Success && Version.TryParse(match.Groups[1].Value, out var parsedFromText))
+                {
+                    remoteVer = parsedFromText;
+                    cleanTag = match.Groups[1].Value;
+                }
+                else
+                {
+                    return new UpdateCheckResult(false, currentVerStr, tagName, null, 0, body);
+                }
             }
 
             bool isNewer = remoteVer > currentVer;

@@ -1,5 +1,11 @@
 # Registro de Mudancas - ThermoSync
 
+## Versao 1.2.2
+
+### Auto-Update e Publicacao de Releases
+- Publicacao automatica de Releases versionadas no GitHub Actions com base na tag `<Version>` do `ThermoSync.csproj`, gerando tags sem sobrescrever historico.
+- Suporte a extracao semantica de versao no `UpdateService` a partir do titulo e corpo da release quando a tag da release for generica (`latest`).
+
 ## Versao 1.2.1
 
 ### Correcoes de Inicializacao e Estabilidade
