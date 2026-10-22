@@ -70,6 +70,9 @@ public sealed class TrayManager : IDisposable
     [DllImport("user32.dll")]
     private static extern bool SetForegroundWindow(IntPtr hWnd);
 
+    [DllImport("shell32.dll", CharSet = CharSet.Auto)]
+    private static extern int ExtractIconEx(string szFileName, int nIconIndex, out IntPtr phiconLarge, out IntPtr phiconSmall, int nIcons);
+
     private readonly Window _window;
     private IntPtr _hwnd;
     private HwndSource? _hwndSource;
@@ -99,6 +102,22 @@ public sealed class TrayManager : IDisposable
     {
         try
         {
+            // 1. Tentar extrair o ícone pequeno (16x16) diretamente do executável (.exe)
+            string? exePath = Environment.ProcessPath ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+            if (!string.IsNullOrEmpty(exePath) && File.Exists(exePath))
+            {
+                IntPtr hLarge = IntPtr.Zero;
+                IntPtr hSmall = IntPtr.Zero;
+                int count = ExtractIconEx(exePath, 0, out hLarge, out hSmall, 1);
+                if (hLarge != IntPtr.Zero) DestroyIcon(hLarge);
+                if (hSmall != IntPtr.Zero)
+                {
+                    _hIcon = hSmall;
+                    return;
+                }
+            }
+
+            // 2. Fallback: carregar de arquivo solto no disco
             string icoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "app.ico");
             if (File.Exists(icoPath))
             {

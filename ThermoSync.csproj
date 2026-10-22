@@ -22,6 +22,7 @@
     <Resource Include="Assets\app.ico" />
     <Resource Include="Assets\logo-badge.png" />
     <Resource Include="Assets\logo-dark.png" />
+    <None Update="Assets\app.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- Bundled serial drivers (SYNC MAKER): each Drivers\<chip> folder becomes a resource extracted at install time.
