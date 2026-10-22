@@ -86,7 +86,8 @@ public sealed class AppSettings
     public string HomelabMqttTopic { get; set; } = "thermosync/telemetry";
     public bool HomelabMqttDiscovery { get; set; } = true;
 
-    // Modo Segundo Plano (System Tray)
+    // Modo Segundo Plano (System Tray) e Inicializacao
+    public bool StartWithWindows { get; set; } = false;
     public bool MinimizeToTray { get; set; } = true;
     public bool CloseToTray { get; set; } = true;
     public bool StartMinimized { get; set; }

@@ -126,6 +126,12 @@ public partial class MainWindow : Window
             {
                 _ = CheckUpdateSilentAsync();
             }
+
+            if (_settings.StartMinimized || Environment.GetCommandLineArgs().Any(a => a.Equals("--minimized", StringComparison.OrdinalIgnoreCase)))
+            {
+                WindowState = WindowState.Minimized;
+                Hide();
+            }
         };
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -361,12 +367,13 @@ public partial class MainWindow : Window
             case "PageOptimize": InitOptimize(); break;
             case "PageFans": InitFansUi(); break;
             case "PageNet": InitNetUi(); break;
+            case "PageSettings": InitSettingsUi(); break;
         }
     }
 
     private void ShowPage(string name)
     {
-        foreach (var p in new FrameworkElement[] { PageDash, PageSystem, PageSensors, PageGpu, PageGames, PageBottleneck, PageOverlay, PageBench, PageOptimize, PageOc, PageInteg, PageLauncher, PageDriver, PageStartup, PageApps, PageMakerPorts, PageMakerDrv, PageDisks, PageEnergy, PageNet, PageStress, PageFans })
+        foreach (var p in new FrameworkElement[] { PageDash, PageSystem, PageSensors, PageGpu, PageGames, PageBottleneck, PageOverlay, PageBench, PageOptimize, PageOc, PageInteg, PageSettings, PageLauncher, PageDriver, PageStartup, PageApps, PageMakerPorts, PageMakerDrv, PageDisks, PageEnergy, PageNet, PageStress, PageFans })
             p.Visibility = p.Name == name ? Visibility.Visible : Visibility.Collapsed;
     }
 

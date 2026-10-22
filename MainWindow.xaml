@@ -308,6 +308,12 @@
                                     <TextBlock Text="Integração" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
+                            <RadioButton x:Name="NavSettings" Style="{StaticResource NavItem}" Tag="PageSettings" Checked="Nav_Checked">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE713;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Configurações" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </RadioButton>
                             </StackPanel>
                             <ToggleButton x:Name="GrpMaker" Style="{StaticResource NavGroup}" Content="SYNC MAKER"/>
                             <StackPanel x:Name="GrpMakerItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpMaker, Converter={StaticResource BoolVis}}">
@@ -1065,20 +1071,6 @@
                                     </StackPanel>
                                 </Border>
 
-                                <!-- Modo Segundo Plano (System Tray) -->
-                                <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,4,0,10" Padding="0,10,0,0">
-                                    <StackPanel>
-                                        <TextBlock Text="Modo Segundo Plano (System Tray)" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,2"/>
-                                        <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8">
-                                            Permite manter a telemetria, o exportador Prometheus e os alertas rodando silenciosamente na bandeja do Windows mesmo quando a janela principal for fechada ou minimizada.
-                                        </TextBlock>
-                                        <WrapPanel>
-                                            <CheckBox x:Name="ChkMinimizeToTray" Content="Minimizar para a bandeja" VerticalAlignment="Center" Margin="0,0,20,6"/>
-                                            <CheckBox x:Name="ChkCloseToTray" Content="Fechar para a bandeja (manter em segundo plano)" VerticalAlignment="Center" Margin="0,0,20,6"/>
-                                        </WrapPanel>
-                                    </StackPanel>
-                                </Border>
-
                                 <!-- Webhooks de Alerta Crítico -->
                                 <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,4,0,10" Padding="0,10,0,0">
                                     <StackPanel>
@@ -1154,58 +1146,6 @@
 
                                 <Button x:Name="BtnApplyHomelab" Style="{StaticResource OutlineButton}" Content="APLICAR CONFIGURAÇÕES HOMELAB"
                                         HorizontalAlignment="Left" Padding="18,8" Margin="0,4,0,0" Click="BtnApplyHomelab_Click"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Backup, Logs de Telemetria e Auto-Update -->
-                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
-                            <StackPanel>
-                                <TextBlock Text="SISTEMA · LOGS, BACKUP E ATUALIZAÇÕES" Style="{StaticResource Label}"/>
-
-                                <!-- Logs CSV -->
-                                <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,8,0,10" Padding="0,10,0,0">
-                                    <StackPanel>
-                                        <TextBlock Text="Histórico de Telemetria (Logs CSV Rotativos)" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,2"/>
-                                        <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,10,10">
-                                            Grava temperaturas, uso de CPU/GPU e RAM em arquivos diários para auditoria e pós-análise de throttling ou travamentos. Mantém os últimos 7 dias.
-                                        </TextBlock>
-                                        <WrapPanel>
-                                            <CheckBox x:Name="ChkTelemetryLog" Content="Ativar gravação contínua de logs CSV" VerticalAlignment="Center" Margin="0,0,16,6" Click="ChkTelemetryLog_Click"/>
-                                            <Button x:Name="BtnOpenLogsFolder" Style="{StaticResource OutlineButton}" Content="ABRIR PASTA DE LOGS" Padding="12,4" Margin="0,0,0,6" Click="BtnOpenLogsFolder_Click"/>
-                                        </WrapPanel>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Backup / Restore -->
-                                <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,4,0,10" Padding="0,10,0,0">
-                                    <StackPanel>
-                                        <TextBlock Text="Backup de Configurações" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,2"/>
-                                        <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10">
-                                            Exporte todas as suas definições (webhooks, perfis de ventoinhas, regras de jogos e thresholds) ou restaure a partir de um arquivo JSON.
-                                        </TextBlock>
-                                        <WrapPanel>
-                                            <Button x:Name="BtnExportConfig" Style="{StaticResource OutlineButton}" Content="EXPORTAR BACKUP (.JSON)" Padding="14,6" Margin="0,0,12,6" Click="BtnExportConfig_Click"/>
-                                            <Button x:Name="BtnImportConfig" Style="{StaticResource OutlineButton}" Content="RESTAURAR BACKUP (.JSON)" Padding="14,6" Margin="0,0,0,6" Click="BtnImportConfig_Click"/>
-                                        </WrapPanel>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Auto-Update -->
-                                <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,4,0,4" Padding="0,10,0,0">
-                                    <StackPanel>
-                                        <TextBlock Text="Atualização da Aplicação (GitHub Releases)" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,2"/>
-                                        <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8">
-                                            Verifica e atualiza o ThermoSync automaticamente a partir dos binários oficiais publicados nas releases do GitHub.
-                                        </TextBlock>
-                                        <WrapPanel Margin="0,0,0,8">
-                                            <TextBlock x:Name="TxtAppVersion" Text="Versão instalada: v1.1.0" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" Margin="0,0,16,6"/>
-                                            <Button x:Name="BtnCheckUpdate" Style="{StaticResource OutlineButton}" Content="VERIFICAR ATUALIZAÇÃO" Padding="12,4" Margin="0,0,12,6" Click="BtnCheckUpdate_Click"/>
-                                            <Button x:Name="BtnInstallUpdate" Style="{StaticResource PrimaryButton}" Content="BAIXAR E ATUALIZAR AGORA" Padding="14,4" Margin="0,0,0,6" Visibility="Collapsed" Click="BtnInstallUpdate_Click"/>
-                                        </WrapPanel>
-                                        <ProgressBar x:Name="PrgUpdate" Height="4" Margin="0,0,0,6" Visibility="Collapsed"/>
-                                        <TextBlock x:Name="TxtUpdateStatus" Text="" Foreground="{DynamicResource Muted}" FontSize="12"/>
-                                    </StackPanel>
-                                </Border>
                             </StackPanel>
                         </Border>
 
@@ -1289,6 +1229,125 @@
                                          MinHeight="90" MaxHeight="260" VerticalScrollBarVisibility="Auto" AcceptsReturn="True"/>
                                 <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0">
                                     Se as luzes não mudarem, copie este quadro e me envie.
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ===== SYNC CONFIGURAÇÕES ===== -->
+                <ScrollViewer x:Name="PageSettings" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="36,30,36,30">
+                        <Grid Margin="0,0,0,20">
+                            <StackPanel>
+                                <TextBlock Text="CONFIGURAÇÕES" Style="{StaticResource H1}"/>
+                                <TextBlock Text="Comportamento da aplicação, segundo plano, telemetria contínua, cópias de segurança e atualizações" Style="{StaticResource Sub}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- 1. COMPORTAMENTO & INICIALIZAÇÃO -->
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="COMPORTAMENTO &amp; INICIALIZAÇÃO" Style="{StaticResource Label}"/>
+
+                                <TextBlock Text="Inicialização com o Windows" FontSize="14" FontWeight="SemiBold" Margin="0,8,0,2"/>
+                                <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8">
+                                    Inicia o ThermoSync automaticamente no logon do usuário criando uma entrada de execução no registro (HKCU). Por ser um executável portátil, o atalho apontará para a pasta atual do binário.
+                                </TextBlock>
+                                <WrapPanel Margin="0,0,0,12">
+                                    <CheckBox x:Name="ChkStartWithWindows" Content="Iniciar com o Windows" VerticalAlignment="Center" Margin="0,0,20,6" Click="ChkStartWithWindows_Click"/>
+                                    <CheckBox x:Name="ChkStartMinimized" Content="Iniciar minimizado na bandeja" VerticalAlignment="Center" Margin="0,0,20,6" Click="ChkStartMinimized_Click"/>
+                                </WrapPanel>
+
+                                <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,4,0,10" Padding="0,10,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="Modo Segundo Plano (System Tray)" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                                        <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8">
+                                            Mantém a telemetria, ventoinhas ativas, exportador Prometheus e webhooks rodando na bandeja do sistema sem ocupar a barra de tarefas.
+                                        </TextBlock>
+                                        <WrapPanel Margin="0,0,0,6">
+                                            <CheckBox x:Name="ChkMinimizeToTray" Content="Minimizar para a bandeja" VerticalAlignment="Center" Margin="0,0,20,6" Click="ChkMinimizeToTray_Click"/>
+                                            <CheckBox x:Name="ChkCloseToTray" Content="Fechar para a bandeja (manter em segundo plano)" VerticalAlignment="Center" Margin="0,0,20,6" Click="ChkCloseToTray_Click"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,4,0,0" Padding="0,10,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="Aparência da Interface" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                                        <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8">
+                                            Alterna entre os temas claro e escuro de alto contraste da aplicação.
+                                        </TextBlock>
+                                        <WrapPanel>
+                                            <Button x:Name="BtnToggleThemeSettings" Style="{StaticResource OutlineButton}" Content="ALTERNAR TEMA (ESCURO / CLARO)" Padding="14,6" Click="Theme_Click"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 2. HISTÓRICO DE TELEMETRIA -->
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="HISTÓRICO DE TELEMETRIA" Style="{StaticResource Label}"/>
+
+                                <TextBlock Text="Gravação Contínua em Logs CSV" FontSize="14" FontWeight="SemiBold" Margin="0,8,0,2"/>
+                                <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,10,10">
+                                    Grava temperaturas de CPU/GPU, cargas, clocks e uso de memória em arquivos diários rotativos para auditoria de travamentos e gráficos de longo prazo. Arquivos com mais de 7 dias são purgados automaticamente.
+                                </TextBlock>
+                                <WrapPanel>
+                                    <CheckBox x:Name="ChkTelemetryLog" Content="Ativar gravação contínua de logs CSV" VerticalAlignment="Center" Margin="0,0,20,6" Click="ChkTelemetryLog_Click"/>
+                                    <Button x:Name="BtnOpenLogsFolder" Style="{StaticResource OutlineButton}" Content="ABRIR PASTA DE LOGS" Padding="14,6" Margin="0,0,0,6" Click="BtnOpenLogsFolder_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 3. BACKUP DE CONFIGURAÇÕES -->
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="BACKUP &amp; RESTAURAÇÃO" Style="{StaticResource Label}"/>
+
+                                <TextBlock Text="Cópia de Segurança das Definições (.JSON)" FontSize="14" FontWeight="SemiBold" Margin="0,8,0,2"/>
+                                <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,10,10">
+                                    Exporte todas as suas configurações personalizadas (perfis de ventoinhas, regras de jogos, webhooks e parâmetros de rede) ou restaure a partir de um backup prévio.
+                                </TextBlock>
+                                <WrapPanel Margin="0,0,0,6">
+                                    <Button x:Name="BtnExportConfig" Style="{StaticResource OutlineButton}" Content="EXPORTAR BACKUP (.JSON)" Padding="14,6" Margin="0,0,12,6" Click="BtnExportConfig_Click"/>
+                                    <Button x:Name="BtnImportConfig" Style="{StaticResource OutlineButton}" Content="RESTAURAR BACKUP (.JSON)" Padding="14,6" Margin="0,0,0,6" Click="BtnImportConfig_Click"/>
+                                </WrapPanel>
+                                <TextBlock x:Name="TxtSettingsBackupStatus" Text="" Foreground="{DynamicResource Muted}" FontSize="12"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 4. ATUALIZAÇÕES DA APLICAÇÃO -->
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="ATUALIZAÇÃO DO SISTEMA" Style="{StaticResource Label}"/>
+
+                                <TextBlock Text="GitHub Releases (Auto-Update)" FontSize="14" FontWeight="SemiBold" Margin="0,8,0,2"/>
+                                <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8">
+                                    Consulta o repositório oficial no GitHub para checar se há novas versões compiladas disponíveis para o ThermoSync.
+                                </TextBlock>
+                                <WrapPanel Margin="0,0,0,8">
+                                    <TextBlock x:Name="TxtAppVersion" Text="Versão instalada: v1.3.0" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" Margin="0,0,16,6"/>
+                                    <Button x:Name="BtnCheckUpdate" Style="{StaticResource OutlineButton}" Content="VERIFICAR ATUALIZAÇÃO" Padding="14,5" Margin="0,0,12,6" Click="BtnCheckUpdate_Click"/>
+                                    <Button x:Name="BtnInstallUpdate" Style="{StaticResource PrimaryButton}" Content="BAIXAR E ATUALIZAR AGORA" Padding="16,5" Margin="0,0,0,6" Visibility="Collapsed" Click="BtnInstallUpdate_Click"/>
+                                </WrapPanel>
+                                <ProgressBar x:Name="PrgUpdate" Height="4" Margin="0,0,0,6" Visibility="Collapsed"/>
+                                <TextBlock x:Name="TxtUpdateStatus" Text="" Foreground="{DynamicResource Muted}" FontSize="12"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 5. SOBRE -->
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="SOBRE O THERMOSYNC" Style="{StaticResource Label}"/>
+                                <TextBlock Text="ThermoSync · Monitor de Hardware, Automação &amp; Homelab" FontSize="14" FontWeight="SemiBold" Margin="0,8,0,2"/>
+                                <TextBlock Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,0,0,6">
+                                    Desenvolvido em .NET 8 (C#) e Windows Presentation Foundation (WPF) para alto desempenho e baixo consumo de recursos.
+                                </TextBlock>
+                                <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap">
+                                    Tecnologias: LibreHardwareMonitor, Vortice D3D12/DXR, System.Management, ETW TraceEvent. Código aberto sob licença MIT.
                                 </TextBlock>
                             </StackPanel>
                         </Border>

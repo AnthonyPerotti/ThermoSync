@@ -24,7 +24,6 @@ public sealed class LightDeviceVm
 /// </summary>
 public partial class MainWindow
 {
-    private string? _pendingUpdateUrl;
     private CorsairSdk? _cue;
     private CorsairBackend? _corsair;
     private OpenRgbBackend? _orgb;
@@ -515,10 +514,6 @@ public partial class MainWindow
         TxtAlertHotspot.Text = _settings.AlertThresholdGpuHotspot.ToString("0.#");
         TxtAlertRam.Text = _settings.AlertThresholdRamPct.ToString("0.#");
 
-        ChkTelemetryLog.IsChecked = _settings.TelemetryLogEnabled;
-        var ver = UpdateService.GetCurrentVersion();
-        TxtAppVersion.Text = $"Versão instalada: v{ver.Major}.{ver.Minor}.{ver.Build}";
-
         UpdateHomelabStatus();
     }
 
@@ -534,10 +529,6 @@ public partial class MainWindow
             _settings.HomelabMqttPort = mPort;
         _settings.HomelabMqttTopic = string.IsNullOrWhiteSpace(TxtMqttTopic.Text) ? "thermosync/telemetry" : TxtMqttTopic.Text.Trim();
         _settings.HomelabMqttDiscovery = ChkMqttDiscovery.IsChecked == true;
-
-        // Tray
-        _settings.MinimizeToTray = ChkMinimizeToTray.IsChecked == true;
-        _settings.CloseToTray = ChkCloseToTray.IsChecked == true;
 
         // Webhooks
         _settings.AlertGotifyEnabled = ChkGotify.IsChecked == true;
@@ -611,130 +602,6 @@ public partial class MainWindow
                 TxtMqttStatus.Text = $"Erro: {_homelab.MqttError}";
             else
                 TxtMqttStatus.Text = _settings.HomelabMqttEnabled ? "Conectando…" : "Desativado";
-        }
-    }
-
-    private void ChkTelemetryLog_Click(object sender, RoutedEventArgs e)
-    {
-        _settings.TelemetryLogEnabled = ChkTelemetryLog.IsChecked == true;
-        _telemetryLogger.IsEnabled = _settings.TelemetryLogEnabled;
-        _settings.Save();
-    }
-
-    private void BtnOpenLogsFolder_Click(object sender, RoutedEventArgs e)
-    {
-        string dir = Path.Combine(AppSettings.Folder, "telemetry");
-        Directory.CreateDirectory(dir);
-        try
-        {
-            Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true });
-        }
-        catch { }
-    }
-
-    private void BtnExportConfig_Click(object sender, RoutedEventArgs e)
-    {
-        var dlg = new SaveFileDialog
-        {
-            Filter = "Arquivo de Configuração (*.json)|*.json",
-            FileName = $"thermosync-backup-{DateTime.Now:yyyyMMdd}.json",
-            Title = "Exportar backup de configurações do ThermoSync"
-        };
-        if (dlg.ShowDialog(this) == true)
-        {
-            try
-            {
-                _settings.ExportToFile(dlg.FileName);
-                if (TxtAlertTestStatus != null)
-                    TxtAlertTestStatus.Text = $"Backup exportado com sucesso: {Path.GetFileName(dlg.FileName)}";
-            }
-            catch (Exception ex)
-            {
-                if (TxtAlertTestStatus != null)
-                    TxtAlertTestStatus.Text = $"Erro ao exportar backup: {ex.Message}";
-            }
-        }
-    }
-
-    private void BtnImportConfig_Click(object sender, RoutedEventArgs e)
-    {
-        var dlg = new OpenFileDialog
-        {
-            Filter = "Arquivo de Configuração (*.json)|*.json",
-            Title = "Restaurar backup de configurações do ThermoSync"
-        };
-        if (dlg.ShowDialog(this) == true)
-        {
-            try
-            {
-                var imported = AppSettings.ImportFromFile(dlg.FileName);
-                InitHomelabUi();
-                if (TxtAlertTestStatus != null)
-                    TxtAlertTestStatus.Text = "Configurações restauradas com sucesso!";
-            }
-            catch (Exception ex)
-            {
-                if (TxtAlertTestStatus != null)
-                    TxtAlertTestStatus.Text = $"Erro ao restaurar backup: {ex.Message}";
-            }
-        }
-    }
-
-    private async void BtnCheckUpdate_Click(object sender, RoutedEventArgs e)
-    {
-        BtnCheckUpdate.IsEnabled = false;
-        TxtUpdateStatus.Text = "Consultando GitHub Releases…";
-        try
-        {
-            var res = await _updateService.CheckForUpdateAsync();
-            if (res.HasUpdate && !string.IsNullOrEmpty(res.DownloadUrl))
-            {
-                _pendingUpdateUrl = res.DownloadUrl;
-                TxtUpdateStatus.Text = $"Nova versão {res.RemoteVersion} disponível! ({res.AssetSizeBytes / (1024.0 * 1024.0):0.0} MB)";
-                BtnInstallUpdate.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                TxtUpdateStatus.Text = $"Você já está usando a versão mais recente ({res.CurrentVersion}).";
-                BtnInstallUpdate.Visibility = Visibility.Collapsed;
-            }
-        }
-        catch (Exception ex)
-        {
-            TxtUpdateStatus.Text = $"Falha ao consultar releases: {ex.Message}";
-        }
-        finally
-        {
-            BtnCheckUpdate.IsEnabled = true;
-        }
-    }
-
-    private async void BtnInstallUpdate_Click(object sender, RoutedEventArgs e)
-    {
-        if (string.IsNullOrEmpty(_pendingUpdateUrl)) return;
-
-        BtnInstallUpdate.IsEnabled = false;
-        BtnCheckUpdate.IsEnabled = false;
-        PrgUpdate.Visibility = Visibility.Visible;
-        PrgUpdate.Value = 0;
-        TxtUpdateStatus.Text = "Baixando nova versão do ThermoSync…";
-
-        var progress = new Progress<double>(p =>
-        {
-            PrgUpdate.Value = p * 100.0;
-            TxtUpdateStatus.Text = $"Baixando: {p:P0}…";
-        });
-
-        try
-        {
-            await _updateService.DownloadAndInstallUpdateAsync(_pendingUpdateUrl, progress);
-        }
-        catch (Exception ex)
-        {
-            PrgUpdate.Visibility = Visibility.Collapsed;
-            BtnInstallUpdate.IsEnabled = true;
-            BtnCheckUpdate.IsEnabled = true;
-            TxtUpdateStatus.Text = $"Erro na atualização: {ex.Message}";
         }
     }
 }

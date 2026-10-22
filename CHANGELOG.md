@@ -1,5 +1,14 @@
 # Registro de Mudancas - ThermoSync
 
+## Versao 1.3.0
+
+### Nova Aba de Configuracoes (SYNC TOOLS)
+- Criada pagina dedicada `PageSettings` sob o grupo SYNC TOOLS, desacoplando o gerenciamento do ciclo de vida da aplicacao da aba de Integracoes.
+- Adicionada opcao de **Inicializacao com o Windows** (desativada por padrao) via registro `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, compativel com o executavel portatil.
+- Suporte a inicializacao minimizada diretamente na bandeja do sistema com passagem automatica do parametro `--minimized`.
+- Migrados os modulos de Modo Segundo Plano (Tray), Gravacao Continua de Logs CSV, Backup/Restauracao em JSON e Auto-Update via GitHub Releases para a nova tela.
+- Tela de Integracao mantida 100% focada em Iluminacao RGB (iCUE, OpenRGB, Razer), Servicos de Homelab (Prometheus, MQTT) e Webhooks de Alerta (Gotify, Discord, Telegram).
+
 ## Versao 1.2.2
 
 ### Auto-Update e Publicacao de Releases
