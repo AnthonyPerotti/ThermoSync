@@ -1,5 +1,12 @@
 # Registro de Mudancas - ThermoSync
 
+## Versao 1.2.1
+
+### Correcoes de Inicializacao e Estabilidade
+- Corrigida falha de `NullReferenceException` ao abrir a aplicacao, causada pelo disparo prematuro do evento `Checked` do seletor de perfis de ventoinhas durante o `InitializeComponent()` antes da instanciacao dos servicos.
+- Corrigido icone transparente/invisivel na bandeja do sistema (System Tray), implementando extracao nativa do icone 16x16 diretamente do executavel compilado (`ExtractIconEx`) e copia redundante de `Assets/app.ico` na saida.
+- Ajustado fluxo do GitHub Actions para preservar releases historicas de tags versionadas, impedindo sobrescrita acidental via `--clobber`.
+
 ## Versao 1.2.0
 
 ### Reorganizacao Estrutural de Pastas
