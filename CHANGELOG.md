@@ -1,5 +1,19 @@
 # Registro de Mudancas - ThermoSync
 
+## Versao 1.4.0
+
+### Instalador de Apps e Utilitarios Pos-Formatacao
+- Suporte a instalacao direta via releases oficiais do GitHub: integrado para ferramentas sem pacote atualizado no winget (`storytold/pdfcraft` e `storytold/wordcraft`). O ThermoSync consulta a API do GitHub, faz o download do binario instalador `.msi` e executa a instalacao silenciosa via `msiexec`.
+- Catalogo expandido com 15 softwares essenciais organizados por categorias:
+  - **Runtimes Essenciais:** Microsoft Visual C++ 2015-2022 Redistributable (x64 e x86), DirectX End-User Runtimes, .NET Desktop Runtime 8.0.
+  - **Produtividade & Documentos:** PdfCraft (manipulador de PDFs com OCR e split/merge) e WordCraft (editor e conversor de documentos).
+  - **Navegadores:** Google Chrome e Mozilla Firefox.
+  - **Compactadores:** 7-Zip e WinRAR.
+  - **Jogos & Comunicacao:** Steam, Epic Games Launcher e Discord.
+  - **Midia & Drivers:** VLC media player, Lightshot e Intel Driver & Support Assistant.
+- Interface visual aprimorada na aba de instalacao de aplicativos com identificacao visual da categoria de cada pacote por badges.
+- Flexibilidade no instalador: aplicativos com instaladores proprios ou do GitHub agora podem ser instalados mesmo se o `winget` nao estiver disponivel no sistema operacional.
+
 ## Versao 1.3.0
 
 ### Nova Aba de Configuracoes (SYNC TOOLS)

@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Windows;
 
 namespace ThermoSync;
@@ -23,12 +23,11 @@ public partial class MainWindow
 
         bool winget = AppInstaller.WingetAvailable;
         BtnAppsStore.Visibility = winget ? Visibility.Collapsed : Visibility.Visible;
-        BtnAppsInstall.IsEnabled = winget;
+        BtnAppsInstall.IsEnabled = winget || (_installApps.Any(a => !string.IsNullOrEmpty(a.GitHubRepo)));
         int installed = _installApps.Count(a => a.Installed);
         AppsStatus.Text = winget
-            ? $"{installed} de {_installApps.Count} já instalados. Marque o que quer e clique em INSTALAR SELECIONADOS."
-            : "O winget não foi encontrado. Em PC recém-formatado ele aparece depois que a Microsoft Store atualiza o " +
-              "\"Instalador de Aplicativo\": use o botão abaixo, espere atualizar e abra esta página de novo.";
+            ? $"{installed} de {_installApps.Count} já instalados. Marque o que deseja e clique em INSTALAR SELECIONADOS."
+            : $"{installed} de {_installApps.Count} já instalados. O winget não foi encontrado no sistema (apps do GitHub podem ser instalados direto; para os demais pacotes, use o botão da Microsoft Store abaixo).";
     }
 
     private void BtnAppsAll_Click(object sender, RoutedEventArgs e)
