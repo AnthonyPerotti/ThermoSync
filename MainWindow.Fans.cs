@@ -80,6 +80,10 @@ public partial class MainWindow
 
     private void ApplyCurrentFanProfile()
     {
+        // Guard: during InitializeComponent the XAML parser fires Checked events
+        // before the constructor has created _monitor and _fans.
+        if (_monitor == null || _fans == null) return;
+
         float? cpuTemp = _monitor.CpuTemperature;
         float? gpuTemp = MainGpuTemp();
         _fans.ApplyProfile(_settings.FanMode, _settings.FanManualPct, cpuTemp, gpuTemp);

@@ -64,4 +64,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create $env:GITHUB_REF_NAME dist/ThermoSync.exe ThermoSync.zip --title "THERMOSYNC $env:GITHUB_REF_NAME" --notes-file CHANGELOG.md --clobber
+          $tag = $env:GITHUB_REF_NAME
+          if (gh release view $tag 2>$null) {
+            Write-Host "::warning::Release $tag ja existe. Nenhuma alteracao feita."
+          } else {
+            gh release create $tag dist/ThermoSync.exe ThermoSync.zip --title "THERMOSYNC $tag" --notes-file CHANGELOG.md --verify-tag
+          }
