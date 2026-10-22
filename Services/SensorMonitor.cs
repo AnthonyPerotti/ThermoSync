@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using LibreHardwareMonitor.Hardware;
 
 namespace ThermoSync;
@@ -12,6 +12,7 @@ public sealed class SensorMonitor : IDisposable
 
     public ObservableCollection<SensorRow> Rows { get; } = new();
     public bool IsOpen => _open;
+    public Computer Computer => _computer;
 
     public SensorMonitor()
     {

@@ -32,6 +32,7 @@ public sealed class GameProfile
     public int Hz { get; set; }                        // 0 = não definir
     public string Style { get; set; } = "source";      // source | unity | unreal
     public string Extra { get; set; } = "";
+    public string FanProfile { get; set; } = "default"; // default | Quiet | Balanced | Performance | Extreme
     public List<HelperProgram> Helpers { get; set; } = new();
 }
 
@@ -85,6 +86,41 @@ public sealed class AppSettings
     public string HomelabMqttTopic { get; set; } = "thermosync/telemetry";
     public bool HomelabMqttDiscovery { get; set; } = true;
 
+    // Modo Segundo Plano (System Tray)
+    public bool MinimizeToTray { get; set; } = true;
+    public bool CloseToTray { get; set; } = true;
+    public bool StartMinimized { get; set; }
+
+    // Webhooks de Alerta Crítico (Gotify, Discord, Telegram)
+    public bool AlertGotifyEnabled { get; set; }
+    public string AlertGotifyUrl { get; set; } = "";
+    public string AlertGotifyToken { get; set; } = "";
+    public bool AlertDiscordEnabled { get; set; }
+    public string AlertDiscordWebhookUrl { get; set; } = "";
+    public bool AlertTelegramEnabled { get; set; }
+    public string AlertTelegramBotToken { get; set; } = "";
+    public string AlertTelegramChatId { get; set; } = "";
+    public double AlertThresholdCpuTemp { get; set; } = 90.0;
+    public double AlertThresholdGpuTemp { get; set; } = 85.0;
+    public double AlertThresholdGpuHotspot { get; set; } = 95.0;
+    public double AlertThresholdRamPct { get; set; } = 95.0;
+    public int AlertCooldownMinutes { get; set; } = 5;
+
+    // SYNC FAN (Controle Ativo de Ventoinhas)
+    public string FanMode { get; set; } = "Auto"; // Auto | Quiet | Balanced | Performance | Manual
+    public int FanManualPct { get; set; } = 60;
+
+    // SYNC NET (Teste de Rede Homelab)
+    public string HomelabNetHost { get; set; } = "192.168.1.1";
+    public int HomelabNetPort { get; set; } = 5201;
+
+    // Telemetria e Logs
+    public bool TelemetryLogEnabled { get; set; } = true;
+    public int TelemetryLogIntervalSec { get; set; } = 5;
+
+    // Auto-Update
+    public bool AutoCheckUpdates { get; set; } = true;
+
     [System.Text.Json.Serialization.JsonIgnore] // nunca gravar a chave em texto puro
     public string? HowManyFpsKey
     {
@@ -121,5 +157,20 @@ public sealed class AppSettings
     {
         Directory.CreateDirectory(Folder);
         File.WriteAllText(FilePath, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+    }
+
+    public void ExportToFile(string destinationPath)
+    {
+        string json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
+        File.WriteAllText(destinationPath, json);
+    }
+
+    public static AppSettings ImportFromFile(string sourcePath)
+    {
+        string json = File.ReadAllText(sourcePath);
+        var settings = JsonSerializer.Deserialize<AppSettings>(json);
+        if (settings == null) throw new InvalidOperationException("Arquivo de configurações inválido.");
+        settings.Save();
+        return settings;
     }
 }

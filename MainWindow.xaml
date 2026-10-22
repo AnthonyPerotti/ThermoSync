@@ -221,6 +221,12 @@
                                     <TextBlock Text="Rede" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
+                            <RadioButton x:Name="NavFans" Style="{StaticResource NavItem}" Tag="PageFans" Checked="Nav_Checked">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE9CA;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Ventoinhas (Fans)" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </RadioButton>
                             </StackPanel>
                             <ToggleButton x:Name="GrpGames" Style="{StaticResource NavGroup}" Content="SYNC GAMES"/>
                             <StackPanel x:Name="GrpGamesItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpGames, Converter={StaticResource BoolVis}}">
@@ -408,6 +414,58 @@
                                 </DockPanel>
                             </Border>
                         </Grid>
+
+                        <!-- Histórico Rápido (Sparklines Inline dos últimos minutos) -->
+                        <Border Style="{StaticResource CardBorder}" Padding="20,14" Margin="0,0,0,16">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,10">
+                                    <TextBlock Text="HISTÓRICO RECENTE · ÚLTIMOS 5 MINUTOS" Style="{StaticResource Label}"/>
+                                    <TextBlock Text="tendência de temperatura e uso" HorizontalAlignment="Right" Foreground="{DynamicResource Faint}" FontSize="11"/>
+                                </Grid>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <!-- CPU Sparkline -->
+                                    <Border Background="{DynamicResource Bg}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="12" Padding="14,10">
+                                        <StackPanel>
+                                            <Grid>
+                                                <TextBlock Text="CPU" FontWeight="SemiBold" FontSize="13"/>
+                                                <TextBlock x:Name="DashSparkCpuVal" Text="—" HorizontalAlignment="Right" FontFamily="{StaticResource Mono}" FontWeight="SemiBold"/>
+                                            </Grid>
+                                            <Canvas x:Name="DashSparkCpu" Height="42" Margin="0,6,0,4" ClipToBounds="True"/>
+                                            <TextBlock x:Name="DashSparkCpuSub" Text="mín / máx" Foreground="{DynamicResource Faint}" FontSize="10"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <!-- GPU Sparkline -->
+                                    <Border Grid.Column="2" Background="{DynamicResource Bg}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="12" Padding="14,10">
+                                        <StackPanel>
+                                            <Grid>
+                                                <TextBlock Text="GPU" FontWeight="SemiBold" FontSize="13"/>
+                                                <TextBlock x:Name="DashSparkGpuVal" Text="—" HorizontalAlignment="Right" FontFamily="{StaticResource Mono}" FontWeight="SemiBold"/>
+                                            </Grid>
+                                            <Canvas x:Name="DashSparkGpu" Height="42" Margin="0,6,0,4" ClipToBounds="True"/>
+                                            <TextBlock x:Name="DashSparkGpuSub" Text="mín / máx" Foreground="{DynamicResource Faint}" FontSize="10"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <!-- RAM Sparkline -->
+                                    <Border Grid.Column="4" Background="{DynamicResource Bg}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="12" Padding="14,10">
+                                        <StackPanel>
+                                            <Grid>
+                                                <TextBlock Text="MEMÓRIA RAM" FontWeight="SemiBold" FontSize="13"/>
+                                                <TextBlock x:Name="DashSparkRamVal" Text="—" HorizontalAlignment="Right" FontFamily="{StaticResource Mono}" FontWeight="SemiBold"/>
+                                            </Grid>
+                                            <Canvas x:Name="DashSparkRam" Height="42" Margin="0,6,0,4" ClipToBounds="True"/>
+                                            <TextBlock x:Name="DashSparkRamSub" Text="mín / máx" Foreground="{DynamicResource Faint}" FontSize="10"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
 
                         <!-- Linha 2: tabela de componentes -->
                         <Border Style="{StaticResource CardBorder}" Padding="22,14,22,8" Margin="0,0,0,16">
@@ -771,10 +829,42 @@
                         </Grid>
                         <TextBlock x:Name="NetStatus" Text="Pronto. O teste leva cerca de 30 segundos." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,16"/>
                         <ItemsControl x:Name="NetCards" ItemTemplate="{StaticResource CardTemplate}"/>
-                        <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap">
+                        <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,24">
                             O teste envia pacotes de ping ao roteador e aos DNS públicos 1.1.1.1 e 8.8.8.8 e baixa/envia dados de teste do servidor público
                             speed.cloudflare.com (cerca de 100 MB no total). Feche downloads, streaming e jogos antes para um resultado fiel.
                         </TextBlock>
+
+                        <!-- ===== TESTE LOCAL HOMELAB & ZIMAOS (iperf3) ===== -->
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="HOMELAB &amp; INFRAESTRUTURA LOCAL" Style="{StaticResource Label}"/>
+                                <TextBlock Text="Throughput Real (iperf3 / LAN), Jitter Inter-Pacote e MTU" FontSize="14" FontWeight="SemiBold" Margin="0,4,0,4"/>
+                                <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,12">
+                                    Mede a taxa de transferência real da sua rede local entre este computador e seu servidor ZimaOS / Homelab / NAS via protocolo TCP de alta performance (compatível com servidor iperf3 ou stream direto de socket).
+                                </TextBlock>
+
+                                <WrapPanel Margin="0,0,0,10">
+                                    <StackPanel Margin="0,0,14,6">
+                                        <TextBlock Text="IP / Host do Servidor:" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,0,0,4"/>
+                                        <TextBox x:Name="TxtHomelabNetHost" Width="180" Text="192.168.1.1" Height="28" Padding="8,4"/>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,0,16,6">
+                                        <TextBlock Text="Porta (padrão iperf3 5201):" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,0,0,4"/>
+                                        <TextBox x:Name="TxtHomelabNetPort" Width="80" Text="5201" Height="28" Padding="8,4"/>
+                                    </StackPanel>
+                                    <Button x:Name="BtnHomelabNetTest" Style="{StaticResource PrimaryButton}" Content="TESTAR HOMELAB (IPERF3)"
+                                            Padding="18,8" VerticalAlignment="Bottom" Margin="0,0,0,6" Click="BtnHomelabNetTest_Click"/>
+                                </WrapPanel>
+
+                                <Grid Height="3" Margin="0,0,0,8" Background="{DynamicResource Line}">
+                                    <Border Background="{DynamicResource Fg}" RenderTransformOrigin="0,0.5">
+                                        <Border.RenderTransform><ScaleTransform x:Name="HomelabNetProgress" ScaleX="0"/></Border.RenderTransform>
+                                    </Border>
+                                </Grid>
+                                <TextBlock x:Name="HomelabNetStatus" Text="Insira o IP do seu Homelab/ZimaOS e clique em testar." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                                <ItemsControl x:Name="HomelabNetCards" ItemTemplate="{StaticResource CardTemplate}"/>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
 
@@ -975,8 +1065,147 @@
                                     </StackPanel>
                                 </Border>
 
+                                <!-- Modo Segundo Plano (System Tray) -->
+                                <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,4,0,10" Padding="0,10,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="Modo Segundo Plano (System Tray)" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                                        <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8">
+                                            Permite manter a telemetria, o exportador Prometheus e os alertas rodando silenciosamente na bandeja do Windows mesmo quando a janela principal for fechada ou minimizada.
+                                        </TextBlock>
+                                        <WrapPanel>
+                                            <CheckBox x:Name="ChkMinimizeToTray" Content="Minimizar para a bandeja" VerticalAlignment="Center" Margin="0,0,20,6"/>
+                                            <CheckBox x:Name="ChkCloseToTray" Content="Fechar para a bandeja (manter em segundo plano)" VerticalAlignment="Center" Margin="0,0,20,6"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Webhooks de Alerta Crítico -->
+                                <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,4,0,10" Padding="0,10,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="Webhooks de Alerta Crítico (Discord, Gotify, Telegram)" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                                        <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10">
+                                            Envia notificações imediatas quando o hardware ultrapassar limites de segurança (temperaturas extremas ou falhas).
+                                        </TextBlock>
+
+                                        <!-- Limites de Disparo -->
+                                        <TextBlock Text="Limites de Disparo:" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,0,0,6"/>
+                                        <WrapPanel Margin="0,0,0,12">
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,16,6">
+                                                <TextBlock Text="CPU Máx (°C):" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" Margin="0,0,6,0"/>
+                                                <TextBox x:Name="TxtAlertCpu" Width="50" Text="90" Height="26" Padding="6,2"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,16,6">
+                                                <TextBlock Text="GPU Máx (°C):" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" Margin="0,0,6,0"/>
+                                                <TextBox x:Name="TxtAlertGpu" Width="50" Text="85" Height="26" Padding="6,2"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,16,6">
+                                                <TextBlock Text="Hotspot Máx (°C):" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" Margin="0,0,6,0"/>
+                                                <TextBox x:Name="TxtAlertHotspot" Width="50" Text="95" Height="26" Padding="6,2"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,16,6">
+                                                <TextBlock Text="RAM Máx (%):" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" Margin="0,0,6,0"/>
+                                                <TextBox x:Name="TxtAlertRam" Width="50" Text="95" Height="26" Padding="6,2"/>
+                                            </StackPanel>
+                                        </WrapPanel>
+
+                                        <!-- Gotify -->
+                                        <StackPanel Margin="0,0,0,10">
+                                            <WrapPanel Margin="0,0,0,4">
+                                                <CheckBox x:Name="ChkGotify" Content="Ativar Gotify (ZimaOS / Homelab)" VerticalAlignment="Center" Margin="0,0,16,4"/>
+                                                <Button x:Name="BtnTestGotify" Style="{StaticResource OutlineButton}" Content="TESTAR GOTIFY" Padding="12,4" Click="BtnTestGotify_Click"/>
+                                            </WrapPanel>
+                                            <WrapPanel>
+                                                <TextBlock Text="URL:" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" Margin="0,0,6,0"/>
+                                                <TextBox x:Name="TxtGotifyUrl" Width="200" Text="http://192.168.1.100:8080" Height="26" Padding="6,2" Margin="0,0,12,4"/>
+                                                <TextBlock Text="Token:" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" Margin="0,0,6,0"/>
+                                                <TextBox x:Name="TxtGotifyToken" Width="140" Text="" Height="26" Padding="6,2" Margin="0,0,0,4"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+
+                                        <!-- Discord -->
+                                        <StackPanel Margin="0,0,0,10">
+                                            <WrapPanel Margin="0,0,0,4">
+                                                <CheckBox x:Name="ChkDiscord" Content="Ativar Discord Webhook" VerticalAlignment="Center" Margin="0,0,16,4"/>
+                                                <Button x:Name="BtnTestDiscord" Style="{StaticResource OutlineButton}" Content="TESTAR DISCORD" Padding="12,4" Click="BtnTestDiscord_Click"/>
+                                            </WrapPanel>
+                                            <WrapPanel>
+                                                <TextBlock Text="Webhook URL:" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" Margin="0,0,6,0"/>
+                                                <TextBox x:Name="TxtDiscordWebhook" Width="360" Text="" Height="26" Padding="6,2" Margin="0,0,0,4"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+
+                                        <!-- Telegram -->
+                                        <StackPanel Margin="0,0,0,8">
+                                            <WrapPanel Margin="0,0,0,4">
+                                                <CheckBox x:Name="ChkTelegram" Content="Ativar Telegram Bot" VerticalAlignment="Center" Margin="0,0,16,4"/>
+                                                <Button x:Name="BtnTestTelegram" Style="{StaticResource OutlineButton}" Content="TESTAR TELEGRAM" Padding="12,4" Click="BtnTestTelegram_Click"/>
+                                            </WrapPanel>
+                                            <WrapPanel>
+                                                <TextBlock Text="Bot Token:" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" Margin="0,0,6,0"/>
+                                                <TextBox x:Name="TxtTelegramToken" Width="180" Text="" Height="26" Padding="6,2" Margin="0,0,12,4"/>
+                                                <TextBlock Text="Chat ID:" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" Margin="0,0,6,0"/>
+                                                <TextBox x:Name="TxtTelegramChatId" Width="120" Text="" Height="26" Padding="6,2" Margin="0,0,0,4"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+
+                                        <TextBlock x:Name="TxtAlertTestStatus" Text="" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,4,0,4"/>
+                                    </StackPanel>
+                                </Border>
+
                                 <Button x:Name="BtnApplyHomelab" Style="{StaticResource OutlineButton}" Content="APLICAR CONFIGURAÇÕES HOMELAB"
                                         HorizontalAlignment="Left" Padding="18,8" Margin="0,4,0,0" Click="BtnApplyHomelab_Click"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Backup, Logs de Telemetria e Auto-Update -->
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="SISTEMA · LOGS, BACKUP E ATUALIZAÇÕES" Style="{StaticResource Label}"/>
+
+                                <!-- Logs CSV -->
+                                <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,8,0,10" Padding="0,10,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="Histórico de Telemetria (Logs CSV Rotativos)" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                                        <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,10,10">
+                                            Grava temperaturas, uso de CPU/GPU e RAM em arquivos diários para auditoria e pós-análise de throttling ou travamentos. Mantém os últimos 7 dias.
+                                        </TextBlock>
+                                        <WrapPanel>
+                                            <CheckBox x:Name="ChkTelemetryLog" Content="Ativar gravação contínua de logs CSV" VerticalAlignment="Center" Margin="0,0,16,6" Click="ChkTelemetryLog_Click"/>
+                                            <Button x:Name="BtnOpenLogsFolder" Style="{StaticResource OutlineButton}" Content="ABRIR PASTA DE LOGS" Padding="12,4" Margin="0,0,0,6" Click="BtnOpenLogsFolder_Click"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Backup / Restore -->
+                                <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,4,0,10" Padding="0,10,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="Backup de Configurações" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                                        <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10">
+                                            Exporte todas as suas definições (webhooks, perfis de ventoinhas, regras de jogos e thresholds) ou restaure a partir de um arquivo JSON.
+                                        </TextBlock>
+                                        <WrapPanel>
+                                            <Button x:Name="BtnExportConfig" Style="{StaticResource OutlineButton}" Content="EXPORTAR BACKUP (.JSON)" Padding="14,6" Margin="0,0,12,6" Click="BtnExportConfig_Click"/>
+                                            <Button x:Name="BtnImportConfig" Style="{StaticResource OutlineButton}" Content="RESTAURAR BACKUP (.JSON)" Padding="14,6" Margin="0,0,0,6" Click="BtnImportConfig_Click"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Auto-Update -->
+                                <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,4,0,4" Padding="0,10,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="Atualização da Aplicação (GitHub Releases)" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                                        <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8">
+                                            Verifica e atualiza o ThermoSync automaticamente a partir dos binários oficiais publicados nas releases do GitHub.
+                                        </TextBlock>
+                                        <WrapPanel Margin="0,0,0,8">
+                                            <TextBlock x:Name="TxtAppVersion" Text="Versão instalada: v1.1.0" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" Margin="0,0,16,6"/>
+                                            <Button x:Name="BtnCheckUpdate" Style="{StaticResource OutlineButton}" Content="VERIFICAR ATUALIZAÇÃO" Padding="12,4" Margin="0,0,12,6" Click="BtnCheckUpdate_Click"/>
+                                            <Button x:Name="BtnInstallUpdate" Style="{StaticResource PrimaryButton}" Content="BAIXAR E ATUALIZAR AGORA" Padding="14,4" Margin="0,0,0,6" Visibility="Collapsed" Click="BtnInstallUpdate_Click"/>
+                                        </WrapPanel>
+                                        <ProgressBar x:Name="PrgUpdate" Height="4" Margin="0,0,0,6" Visibility="Collapsed"/>
+                                        <TextBlock x:Name="TxtUpdateStatus" Text="" Foreground="{DynamicResource Muted}" FontSize="12"/>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </Border>
 
@@ -1128,6 +1357,14 @@
                                     <RadioButton Style="{StaticResource Chip}" GroupName="LPriority" Content="Acima do normal" Tag="above" Checked="LProfile_Changed"/>
                                     <RadioButton Style="{StaticResource Chip}" GroupName="LPriority" Content="Alta" Tag="high" Checked="LProfile_Changed"/>
                                 </WrapPanel>
+                                    <TextBlock Text="Perfil de ventoinhas durante o jogo" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,4,0,0"/>
+                                    <WrapPanel x:Name="LFanPanel" Margin="0,4,0,10">
+                                        <RadioButton Style="{StaticResource Chip}" GroupName="LFan" Content="Padrão" Tag="default" IsChecked="True" Checked="LProfile_Changed"/>
+                                        <RadioButton Style="{StaticResource Chip}" GroupName="LFan" Content="Silencioso" Tag="Quiet" Checked="LProfile_Changed"/>
+                                        <RadioButton Style="{StaticResource Chip}" GroupName="LFan" Content="Equilibrado" Tag="Balanced" Checked="LProfile_Changed"/>
+                                        <RadioButton Style="{StaticResource Chip}" GroupName="LFan" Content="Desempenho" Tag="Performance" Checked="LProfile_Changed"/>
+                                        <RadioButton Style="{StaticResource Chip}" GroupName="LFan" Content="Extremo" Tag="Extreme" Checked="LProfile_Changed"/>
+                                    </WrapPanel>
                                     <CheckBox x:Name="LChkPlan" Content="Plano de energia Alto desempenho enquanto joga (volta ao normal depois)" Margin="0,0,0,10" Click="LProfile_Changed"/>
                                     <CheckBox x:Name="LChkGpu" Content="Forçar a placa de vídeo dedicada (configuração gráfica do Windows)" Margin="0,0,0,10" Click="LProfile_Changed"/>
                                     <CheckBox x:Name="LChkFso" Content="Desativar otimizações de tela cheia do Windows" Margin="0,0,0,12" Click="LProfile_Changed"/>
@@ -2942,6 +3179,101 @@
                         </DockPanel>
                     </Border>
                 </Grid>
+
+                <!-- ===== SYNC FAN (Controle de Ventoinhas) ===== -->
+                <ScrollViewer x:Name="PageFans" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="36,30,36,30">
+                        <Grid Margin="0,0,0,20">
+                            <StackPanel Margin="0,0,160,0">
+                                <TextBlock Text="SYNC FAN" Style="{StaticResource H1}"/>
+                                <TextBlock Text="Controle ativo de rotação PWM, curvas térmicas e perfis de ventoinha" Style="{StaticResource Sub}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Perfis de Ventoinha -->
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="PERFIL TÉRMICO &amp; ROTAÇÃO" Style="{StaticResource Label}"/>
+                                <WrapPanel Margin="0,4,0,12">
+                                    <RadioButton x:Name="BtnFanAuto" Style="{StaticResource Chip}" GroupName="FanProfiles" Content="Padrão (BIOS/Auto)" Tag="Auto" IsChecked="True" Checked="FanMode_Checked"/>
+                                    <RadioButton x:Name="BtnFanQuiet" Style="{StaticResource Chip}" GroupName="FanProfiles" Content="Silencioso" Tag="Quiet" Checked="FanMode_Checked"/>
+                                    <RadioButton x:Name="BtnFanBalanced" Style="{StaticResource Chip}" GroupName="FanProfiles" Content="Equilibrado" Tag="Balanced" Checked="FanMode_Checked"/>
+                                    <RadioButton x:Name="BtnFanPerformance" Style="{StaticResource Chip}" GroupName="FanProfiles" Content="Desempenho" Tag="Performance" Checked="FanMode_Checked"/>
+                                    <RadioButton x:Name="BtnFanManual" Style="{StaticResource Chip}" GroupName="FanProfiles" Content="Manual (Fixo)" Tag="Manual" Checked="FanMode_Checked"/>
+                                </WrapPanel>
+                                <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,12">
+                                    • Silencioso: rotação mínima até 55 °C para silêncio acústico, escalando até 100% aos 85 °C.&#x0a;
+                                    • Equilibrado: rotação balanceada garantindo fluxo contínuo e subida aos 60 °C.&#x0a;
+                                    • Desempenho: alta pressão de ar para manter temperaturas baixas durante sessões de carga e jogos.&#x0a;
+                                    • Padrão (Auto): devolve o controle ao BIOS da placa-mãe e firmware da placa de vídeo.
+                                </TextBlock>
+
+                                <!-- Controle Manual -->
+                                <StackPanel x:Name="PanelFanManual" Margin="0,4,0,4" Visibility="Collapsed">
+                                    <TextBlock Text="Velocidade Manual Fixa:" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,0,0,6"/>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="60"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Slider x:Name="SliderFanManual" Minimum="15" Maximum="100" Value="60" SmallChange="5" LargeChange="10"
+                                                VerticalAlignment="Center" ValueChanged="SliderFanManual_ValueChanged"/>
+                                        <TextBlock x:Name="TxtFanManualVal" Grid.Column="1" Text="60%" FontWeight="SemiBold"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Lista de Ventoinhas Detectadas -->
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="VENTOINHAS E SENSORES PWM" Style="{StaticResource Label}"/>
+                                <TextBlock x:Name="FansCountHint" Text="Detectando ventoinhas…" Foreground="{DynamicResource Muted}" Margin="0,0,0,12"/>
+
+                                <ItemsControl x:Name="FansList">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="0,12">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"/>
+                                                        <TextBlock Text="{Binding HardwareName}" Foreground="{DynamicResource Muted}" FontSize="11"/>
+                                                    </StackPanel>
+
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="16,0">
+                                                        <TextBlock Text="ROTAÇÃO" Foreground="{DynamicResource Muted}" FontSize="10"/>
+                                                        <TextBlock FontSize="13" FontWeight="SemiBold">
+                                                            <Run Text="{Binding Rpm, StringFormat='{}{0:0} RPM', TargetNullValue='—'}"/>
+                                                        </TextBlock>
+                                                    </StackPanel>
+
+                                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="16,0">
+                                                        <TextBlock Text="PWM / CICLO" Foreground="{DynamicResource Muted}" FontSize="10"/>
+                                                        <TextBlock FontSize="13" FontWeight="SemiBold">
+                                                            <Run Text="{Binding ControlPercent, StringFormat='{}{0:0}%', TargetNullValue='Auto'}"/>
+                                                        </TextBlock>
+                                                    </StackPanel>
+
+                                                    <Border Grid.Column="3" Background="{DynamicResource Card}" BorderBrush="{DynamicResource Line}"
+                                                            BorderThickness="1" CornerRadius="4" Padding="10,4" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Mode}" FontSize="11" Foreground="{DynamicResource Muted}"/>
+                                                    </Border>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
             </Grid>
         </Grid>
     </Border>

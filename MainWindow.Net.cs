@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Threading;
 
 namespace ThermoSync;
@@ -71,6 +71,63 @@ public partial class MainWindow
             _netCts?.Dispose();
             _netCts = null;
             BtnNetTest.Content = "TESTAR";
+        }
+    }
+
+    // ================= Rede Homelab (iperf3 & Throughput LAN) =================
+
+    private CancellationTokenSource? _homelabNetCts;
+    private bool _homelabNetRunning;
+
+    private void InitNetUi()
+    {
+        if (TxtHomelabNetHost != null && string.IsNullOrWhiteSpace(TxtHomelabNetHost.Text))
+            TxtHomelabNetHost.Text = _settings.HomelabNetHost;
+        if (TxtHomelabNetPort != null && string.IsNullOrWhiteSpace(TxtHomelabNetPort.Text))
+            TxtHomelabNetPort.Text = _settings.HomelabNetPort.ToString();
+    }
+
+    private async void BtnHomelabNetTest_Click(object sender, RoutedEventArgs e)
+    {
+        if (_homelabNetRunning) { _homelabNetCts?.Cancel(); return; }
+        if (AnyBenchRunning || TestRunning || _netRunning) { HomelabNetStatus.Text = "Termine o outro teste antes."; return; }
+
+        string host = string.IsNullOrWhiteSpace(TxtHomelabNetHost.Text) ? "192.168.1.1" : TxtHomelabNetHost.Text.Trim();
+        if (!int.TryParse(TxtHomelabNetPort.Text.Trim(), out int port) || port <= 0 || port > 65535)
+            port = 5201;
+
+        _settings.HomelabNetHost = host;
+        _settings.HomelabNetPort = port;
+        _settings.Save();
+
+        _homelabNetRunning = true;
+        _homelabNetCts = new CancellationTokenSource();
+        var ct = _homelabNetCts.Token;
+
+        BtnHomelabNetTest.Content = "CANCELAR";
+        HomelabNetCards.ItemsSource = null;
+        HomelabNetProgress.ScaleX = 0;
+
+        try
+        {
+            var cards = await NetworkTest.RunHomelabNetTest(host, port, (text, frac) => Dispatcher.BeginInvoke(new Action(() =>
+            {
+                HomelabNetStatus.Text = text;
+                HomelabNetProgress.ScaleX = Math.Clamp(frac, 0, 1);
+            })), ct);
+
+            HomelabNetCards.ItemsSource = cards;
+            HomelabNetStatus.Text = $"Concluído às {DateTime.Now:HH:mm:ss}. Teste registrado com sucesso.";
+            HomelabNetProgress.ScaleX = 1;
+        }
+        catch (OperationCanceledException) { HomelabNetStatus.Text = "Teste do Homelab cancelado."; HomelabNetProgress.ScaleX = 0; }
+        catch (Exception ex) { HomelabNetStatus.Text = "Falhou: " + ex.Message; HomelabNetProgress.ScaleX = 0; }
+        finally
+        {
+            _homelabNetRunning = false;
+            _homelabNetCts?.Dispose();
+            _homelabNetCts = null;
+            BtnHomelabNetTest.Content = "TESTAR HOMELAB (IPERF3)";
         }
     }
 

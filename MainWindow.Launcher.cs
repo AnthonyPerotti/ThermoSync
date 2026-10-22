@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
@@ -120,6 +120,7 @@ public partial class MainWindow
         LTitle.Text = g.Name;
         LSub.Text = $"{g.Store} · {g.InstallDir}";
         SetChip(LPriorityPanel, p.Priority);
+        SetChip(LFanPanel, p.FanProfile);
         LChkPlan.IsChecked = p.HighPerfPlan;
         LChkGpu.IsChecked = p.GpuHigh;
         LChkFso.IsChecked = p.DisableFso;
@@ -165,6 +166,7 @@ public partial class MainWindow
     {
         if (_lLoading || _lp == null || LPreview == null) return;
         _lp.Priority = CheckedTag(LPriorityPanel) ?? "normal";
+        _lp.FanProfile = CheckedTag(LFanPanel) ?? "default";
         _lp.HighPerfPlan = LChkPlan.IsChecked == true;
         _lp.GpuHigh = LChkGpu.IsChecked == true;
         _lp.DisableFso = LChkFso.IsChecked == true;
@@ -274,6 +276,13 @@ public partial class MainWindow
 
         _launchCts = new CancellationTokenSource();
         BtnPlay.Content = "PARAR ACOMPANHAMENTO";
+        string? prevFanProfile = null;
+        if (!string.IsNullOrWhiteSpace(p.FanProfile) && !p.FanProfile.Equals("default", StringComparison.OrdinalIgnoreCase))
+        {
+            prevFanProfile = _fans.ActiveProfile;
+            _fans.ApplyProfile(p.FanProfile);
+        }
+
         try
         {
             await GameLauncher.RunAsync(g, p,
@@ -291,6 +300,10 @@ public partial class MainWindow
         }
         finally
         {
+            if (!string.IsNullOrEmpty(prevFanProfile))
+            {
+                _fans.ApplyProfile(prevFanProfile);
+            }
             _launchCts?.Dispose();
             _launchCts = null;
             BtnPlay.Content = "JOGAR";

@@ -1,5 +1,34 @@
 # Registro de Mudancas - ThermoSync
 
+## Versao 1.2.0
+
+### Reorganizacao Estrutural de Pastas
+- Migracao de mais de 70 arquivos soltos na raiz para uma arquitetura modular por camadas: `Benchmarks/`, `Hardware/`, `Models/`, `Services/`, `UI/` e `Utils/`.
+- Preservacao do historico do Git via `git mv` e compatibilidade total com o globbing automatico do SDK do .NET 8.
+
+### Auto-Update via GitHub Releases
+- Implementado servico de atualizacao in-app (`Services/UpdateService.cs`) que consulta releases oficiais no GitHub.
+- Download direto do executavel compilado e execucao de helper script desacoplado para substituicao do binario em execucao, contornando o bloqueio de arquivo nativo do Windows.
+
+### Historico Continuo de Telemetria (Logs CSV)
+- Adicionado `Services/TelemetryLogger.cs` para gravacao assincrona e nao-bloqueante de telemetria em arquivos CSV rotativos diarios (`telemetry-YYYY-MM-DD.csv`).
+- Retencao e limpeza automatica de logs anteriores a 7 dias.
+
+### Alerta de Memoria RAM
+- Integrada verificacao de consumo de memoria RAM no `CheckAlerts()` contra o limite configurado (`AlertThresholdRamPct`), com notificacoes via webhooks (Discord, Gotify, Telegram) e balao de bandeja.
+
+### Backup e Restauracao de Configuracoes
+- Implementadas opcoes de exportacao e importacao de arquivo JSON em SYNC INTEGRATION para backup portavel das configuracoes e integracoes do sistema.
+
+### Graficos Inline no Dashboard
+- Adicionados mini-graficos vetoriais (sparklines) com curvas de tendencia para CPU, GPU e RAM nos ultimos 5 minutos no Dashboard principal.
+
+### Perfis de Refrigeracao por Jogo
+- Suporte a definicao de perfil de ventoinha (Quiet, Balanced, Performance, Extreme) em cada cartao do SYNC GAMES, com aplicacao automatica no inicio da partida e restauracao automatica ao finalizar.
+
+### Correcao de Estabilidade
+- Corrigida liberacao de handle GDI (`DestroyIcon`) no encerramento do `Services/TrayManager.cs`.
+
 ## Versao 1.1.0
 
 ### Integracao Homelab e Automacao

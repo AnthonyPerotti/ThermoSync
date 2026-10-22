@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
@@ -20,7 +20,7 @@ public partial class MainWindow
     public sealed record DashRingItem(Brush Swatch, string Label, string Value);
     public sealed record DashCheck(string Title, string Detail, bool Ok);
 
-    private readonly record struct DashSample(float? CpuT, float? GpuT, float? CpuL, float? GpuL, float? CpuW, float? GpuW);
+    private readonly record struct DashSample(float? CpuT, float? GpuT, float? CpuL, float? GpuL, float? CpuW, float? GpuW, float? RamPct);
 
     private const int DashMax = 900; // 15 min a 1 amostra/s
     private readonly List<DashSample> _dash = new();
@@ -42,7 +42,9 @@ public partial class MainWindow
 
     private void CollectDashSample()
     {
-        _dash.Add(new DashSample(_monitor.CpuTemperature, MainGpuTemp(), _monitor.CpuLoad, MainGpuLoad(), _monitor.CpuPower, MainGpuPower()));
+        var (tMem, aMem) = Optimizer.MemoryStatus();
+        float? rPct = tMem > 0 ? (float)(((double)(tMem - aMem) / tMem) * 100.0) : null;
+        _dash.Add(new DashSample(_monitor.CpuTemperature, MainGpuTemp(), _monitor.CpuLoad, MainGpuLoad(), _monitor.CpuPower, MainGpuPower(), rPct));
         if (_dash.Count > DashMax) _dash.RemoveAt(0);
         if (PageDash.IsVisible) UpdateDashboard(full: false);
     }
@@ -105,6 +107,7 @@ public partial class MainWindow
     private void UpdateDashboard(bool full = true)
     {
         DrawDashChart();
+        UpdateDashSparklines();
         UpdateDashComponents();
         UpdateDashRings();
         if (full)
@@ -113,6 +116,99 @@ public partial class MainWindow
             ShowEvents();
         }
         if (full || (DateTime.Now - _healthAt).TotalSeconds > 60) UpdateDashHealth();
+    }
+
+    private void UpdateDashSparklines()
+    {
+        if (DashSparkCpu == null || DashSparkGpu == null || DashSparkRam == null) return;
+
+        var data = _dash.Skip(Math.Max(0, _dash.Count - 300)).ToList();
+        var fg = (SolidColorBrush)FindResource("Fg");
+        var muted = (Brush)FindResource("Muted");
+
+        // CPU Sparkline (Temperatura)
+        var cpuVals = data.Select(s => s.CpuT).Where(v => v.HasValue).Select(v => (double)v!.Value).ToList();
+        if (cpuVals.Count > 0)
+        {
+            DashSparkCpuVal.Text = $"{cpuVals[^1]:0.#} °C";
+            DashSparkCpuSub.Text = $"mín {cpuVals.Min():0.#}° · máx {cpuVals.Max():0.#}°C";
+            DrawSparkline(DashSparkCpu, cpuVals, fg, 20, 105);
+        }
+        else
+        {
+            DashSparkCpuVal.Text = "—";
+            DashSparkCpuSub.Text = "coletando dados…";
+        }
+
+        // GPU Sparkline (Temperatura)
+        var gpuVals = data.Select(s => s.GpuT).Where(v => v.HasValue).Select(v => (double)v!.Value).ToList();
+        if (gpuVals.Count > 0)
+        {
+            DashSparkGpuVal.Text = $"{gpuVals[^1]:0.#} °C";
+            DashSparkGpuSub.Text = $"mín {gpuVals.Min():0.#}° · máx {gpuVals.Max():0.#}°C";
+            DrawSparkline(DashSparkGpu, gpuVals, muted, 20, 100);
+        }
+        else
+        {
+            DashSparkGpuVal.Text = "—";
+            DashSparkGpuSub.Text = "coletando dados…";
+        }
+
+        // RAM Sparkline (Uso %)
+        var ramVals = data.Select(s => s.RamPct).Where(v => v.HasValue).Select(v => (double)v!.Value).ToList();
+        if (ramVals.Count > 0)
+        {
+            DashSparkRamVal.Text = $"{ramVals[^1]:0.#} %";
+            DashSparkRamSub.Text = $"mín {ramVals.Min():0.#}% · máx {ramVals.Max():0.#}%";
+            DrawSparkline(DashSparkRam, ramVals, fg, 0, 100);
+        }
+        else
+        {
+            DashSparkRamVal.Text = "—";
+            DashSparkRamSub.Text = "coletando dados…";
+        }
+    }
+
+    private static void DrawSparkline(Canvas canvas, IReadOnlyList<double> values, Brush strokeBrush, double fixedMin = 0, double fixedMax = 100)
+    {
+        canvas.Children.Clear();
+        if (values.Count < 2) return;
+
+        double w = canvas.ActualWidth > 0 ? canvas.ActualWidth : 180;
+        double h = canvas.ActualHeight > 0 ? canvas.ActualHeight : 42;
+
+        double vMin = Math.Min(fixedMin, values.Min());
+        double vMax = Math.Max(fixedMax, values.Max());
+        if (vMax <= vMin) vMax = vMin + 1;
+
+        double step = w / Math.Max(1, values.Count - 1);
+        var poly = new Polyline
+        {
+            Stroke = strokeBrush,
+            StrokeThickness = 1.6,
+            StrokeLineJoin = PenLineJoin.Round
+        };
+
+        var polygon = new Polygon
+        {
+            Fill = new SolidColorBrush(Color.FromArgb(0x18, 0x88, 0x88, 0x88))
+        };
+
+        for (int i = 0; i < values.Count; i++)
+        {
+            double x = i * step;
+            double norm = Math.Clamp((values[i] - vMin) / (vMax - vMin), 0, 1);
+            double y = h - 4 - norm * (h - 8);
+            var pt = new Point(x, y);
+            poly.Points.Add(pt);
+            polygon.Points.Add(pt);
+        }
+
+        polygon.Points.Add(new Point(poly.Points[^1].X, h));
+        polygon.Points.Add(new Point(poly.Points[0].X, h));
+
+        canvas.Children.Add(polygon);
+        canvas.Children.Add(poly);
     }
 
     private static string F(float? v, string fmt, string unit) => v is float x ? x.ToString(fmt) + unit : "—";

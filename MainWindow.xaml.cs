@@ -44,6 +44,13 @@ public partial class MainWindow : Window
 
     // Homelab & Automação (Prometheus e MQTT)
     private readonly HomelabService _homelab;
+    private readonly AlertWebhookService _alerts;
+    private readonly FanControlService _fans;
+    private readonly TelemetryLogger _telemetryLogger;
+    private readonly UpdateService _updateService = new();
+    private int _telemetryTick;
+    private TrayManager? _tray;
+    private bool _reallyClose;
 
     // Gargalo + overlay
     public sealed record MeterItem(string Label, string Value, double Fraction);
@@ -103,10 +110,22 @@ public partial class MainWindow : Window
         UpdateDashboard();
 
         _homelab = new HomelabService(GetHomelabSnapshot);
+        _alerts = new AlertWebhookService(_settings);
+        _fans = new FanControlService(_monitor);
+        _telemetryLogger = new TelemetryLogger { IsEnabled = _settings.TelemetryLogEnabled };
+
         Loaded += async (_, _) =>
         {
+            InitTray();
             await LoadHardwareAsync();
             _homelab.ApplySettings(_settings);
+            _fans.DiscoverFans(_monitor.Computer);
+            _fans.ApplyProfile(_settings.FanMode, _settings.FanManualPct);
+
+            if (_settings.AutoCheckUpdates)
+            {
+                _ = CheckUpdateSilentAsync();
+            }
         };
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -124,6 +143,19 @@ public partial class MainWindow : Window
             UpdateBottleneck();
             if (PageBench.IsVisible) UpdateBenchLive();
             if (PageOptimize.IsVisible) UpdateRamStatus();
+            if (PageFans.IsVisible) UpdateFansLive();
+            CheckAlerts();
+            UpdateTrayTooltip();
+
+            if (_telemetryTick++ % Math.Max(1, _settings.TelemetryLogIntervalSec) == 0 && _settings.TelemetryLogEnabled)
+            {
+                var (totalR, availR) = Optimizer.MemoryStatus();
+                double ramUsedGb = totalR > 0 ? (totalR - availR) / 1073741824.0 : 0;
+                double ramTotalGb = totalR / 1073741824.0;
+                double ramPct = totalR > 0 ? ((double)(totalR - availR) / totalR) * 100.0 : 0;
+                string? game = _frames.Running ? _frames.GetForegroundStats()?.ProcessName : null;
+                _telemetryLogger.LogSample(DateTime.Now, _monitor.CpuTemperature, _monitor.CpuLoad, CpuClockAvg(), MainGpuTemp(), GetGpuHotspot(), MainGpuLoad(), MainGpuClock(), ramUsedGb, ramTotalGb, ramPct, game);
+            }
         };
         _timer.Start();
 
@@ -133,7 +165,23 @@ public partial class MainWindow : Window
             bool max = WindowState == WindowState.Maximized;
             Root.Margin = max ? new Thickness(7) : new Thickness(0);
             BtnMax.Content = max ? "" : "";
+
+            if (WindowState == WindowState.Minimized && _settings.MinimizeToTray)
+            {
+                Hide();
+            }
         };
+
+        Closing += (s, e) =>
+        {
+            if (_settings.CloseToTray && !_reallyClose)
+            {
+                e.Cancel = true;
+                Hide();
+                _tray?.ShowBalloon("ThermoSync em segundo plano", "A telemetria, ventoinhas e exportador do Homelab continuam ativos.");
+            }
+        };
+
         Closed += (_, _) =>
         {
             _timer.Stop(); _overlayTimer?.Stop();
@@ -143,6 +191,10 @@ public partial class MainWindow : Window
             _frames.Dispose();
             UnregisterHotKey(new System.Windows.Interop.WindowInteropHelper(this).Handle, HotkeyId);
             ShutdownInteg();
+            _fans.Dispose();
+            _tray?.Dispose();
+            _alerts.Dispose();
+            _telemetryLogger.Dispose();
             _homelab.Dispose();
             _launchCts?.Cancel();
             _monitor.Dispose();
@@ -307,13 +359,141 @@ public partial class MainWindow : Window
             case "PageMakerPorts": ScanUsb(); break;
             case "PageMakerDrv": InitMakerDrivers(); break;
             case "PageOptimize": InitOptimize(); break;
+            case "PageFans": InitFansUi(); break;
+            case "PageNet": InitNetUi(); break;
         }
     }
 
     private void ShowPage(string name)
     {
-        foreach (var p in new FrameworkElement[] { PageDash, PageSystem, PageSensors, PageGpu, PageGames, PageBottleneck, PageOverlay, PageBench, PageOptimize, PageOc, PageInteg, PageLauncher, PageDriver, PageStartup, PageApps, PageMakerPorts, PageMakerDrv, PageDisks, PageEnergy, PageNet, PageStress })
+        foreach (var p in new FrameworkElement[] { PageDash, PageSystem, PageSensors, PageGpu, PageGames, PageBottleneck, PageOverlay, PageBench, PageOptimize, PageOc, PageInteg, PageLauncher, PageDriver, PageStartup, PageApps, PageMakerPorts, PageMakerDrv, PageDisks, PageEnergy, PageNet, PageStress, PageFans })
             p.Visibility = p.Name == name ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void InitTray()
+    {
+        var menu = new ContextMenu();
+        var miOpen = new MenuItem { Header = "Abrir THERMOSYNC", FontWeight = FontWeights.Bold };
+        miOpen.Click += (_, _) => { Show(); WindowState = WindowState.Normal; Activate(); };
+
+        var miStatus = new MenuItem { Header = "Homelab Prometheus (Porta 9182)" };
+        miStatus.Click += (_, _) => { Show(); ShowPage("PageInteg"); WindowState = WindowState.Normal; Activate(); };
+
+        var miFans = new MenuItem { Header = "Ventoinhas: Perfis e Curvas" };
+        miFans.Click += (_, _) => { Show(); ShowPage("PageFans"); WindowState = WindowState.Normal; Activate(); };
+
+        var miExit = new MenuItem { Header = "Sair do ThermoSync" };
+        miExit.Click += (_, _) => { _reallyClose = true; Close(); };
+
+        menu.Items.Add(miOpen);
+        menu.Items.Add(new Separator());
+        menu.Items.Add(miStatus);
+        menu.Items.Add(miFans);
+        menu.Items.Add(new Separator());
+        menu.Items.Add(miExit);
+
+        _tray = new TrayManager(this);
+        _tray.OnOpenRequested += () => Dispatcher.BeginInvoke(new Action(() =>
+        {
+            Show();
+            WindowState = WindowState.Normal;
+            Activate();
+        }));
+        _tray.Initialize(menu);
+    }
+
+    private void UpdateTrayTooltip()
+    {
+        if (_tray == null) return;
+        float? cpuT = _monitor.CpuTemperature;
+        float? gpuT = MainGpuTemp();
+        string pStatus = _homelab.PrometheusRunning ? $"Porta {_settings.HomelabPrometheusPort}" : "Desativado";
+        string tip = $"ThermoSync · CPU: {(cpuT.HasValue ? $"{cpuT:0} °C" : "--")} | GPU: {(gpuT.HasValue ? $"{gpuT:0} °C" : "--")}\nPrometheus: {pStatus}";
+        _tray.UpdateTooltip(tip);
+    }
+
+    private void CheckAlerts()
+    {
+        if (!_settings.AlertGotifyEnabled && !_settings.AlertDiscordEnabled && !_settings.AlertTelegramEnabled)
+            return;
+
+        float? cpuTemp = _monitor.CpuTemperature;
+        float? gpuTemp = MainGpuTemp();
+        double? hotspot = null;
+        if (_gpus.Count > 0)
+        {
+            var gRows = _monitor.Rows.Where(r => r.Hardware == _gpus[0].Name).ToList();
+            hotspot = gRows.FirstOrDefault(r => r.Name.Contains("Hot Spot", StringComparison.OrdinalIgnoreCase) || r.Name.Contains("Hotspot", StringComparison.OrdinalIgnoreCase))?.RawValue;
+        }
+
+        string? game = _frames.Running ? _frames.GetForegroundStats()?.ProcessName : null;
+
+        if (cpuTemp > _settings.AlertThresholdCpuTemp && _alerts.ShouldAlert("CPU_TEMP", _settings.AlertCooldownMinutes))
+        {
+            var alert = new AlertNotification("CPU", "CRITICAL", string.IsNullOrWhiteSpace(_cpuName) ? "Processador" : _cpuName, "Temperatura da CPU", cpuTemp.Value, _settings.AlertThresholdCpuTemp, "°C", game);
+            _ = _alerts.DispatchAlertAsync(alert);
+            _tray?.ShowBalloon("Alerta Crítico: CPU", $"A CPU atingiu {cpuTemp.Value:0.#} °C (limite: {_settings.AlertThresholdCpuTemp:0.#} °C)", 3);
+        }
+
+        if (gpuTemp > _settings.AlertThresholdGpuTemp && _alerts.ShouldAlert("GPU_TEMP", _settings.AlertCooldownMinutes))
+        {
+            var alert = new AlertNotification("GPU", "CRITICAL", string.IsNullOrWhiteSpace(_gpuName) ? "Placa de Vídeo" : _gpuName, "Temperatura da GPU", gpuTemp.Value, _settings.AlertThresholdGpuTemp, "°C", game);
+            _ = _alerts.DispatchAlertAsync(alert);
+            _tray?.ShowBalloon("Alerta Crítico: GPU", $"A GPU atingiu {gpuTemp.Value:0.#} °C (limite: {_settings.AlertThresholdGpuTemp:0.#} °C)", 3);
+        }
+
+        if (hotspot > _settings.AlertThresholdGpuHotspot && _alerts.ShouldAlert("GPU_HOTSPOT", _settings.AlertCooldownMinutes))
+        {
+            var alert = new AlertNotification("GPU", "CRITICAL", string.IsNullOrWhiteSpace(_gpuName) ? "Placa de Vídeo" : _gpuName, "Hotspot da GPU", hotspot.Value, _settings.AlertThresholdGpuHotspot, "°C", game);
+            _ = _alerts.DispatchAlertAsync(alert);
+            _tray?.ShowBalloon("Alerta: Hotspot da GPU", $"O Hotspot da GPU atingiu {hotspot.Value:0.#} °C (limite: {_settings.AlertThresholdGpuHotspot:0.#} °C)", 3);
+        }
+
+        var (totalRam, availRam) = Optimizer.MemoryStatus();
+        if (totalRam > 0)
+        {
+            double ramPct = ((double)(totalRam - availRam) / totalRam) * 100.0;
+            if (ramPct > _settings.AlertThresholdRamPct && _alerts.ShouldAlert("RAM_USAGE", _settings.AlertCooldownMinutes))
+            {
+                var alert = new AlertNotification("RAM", "WARNING", "Memória RAM", "Uso de Memória", ramPct, _settings.AlertThresholdRamPct, "%", game);
+                _ = _alerts.DispatchAlertAsync(alert);
+                _tray?.ShowBalloon("Alerta: Uso de RAM Elevado", $"O uso de memória atingiu {ramPct:0.#}% (limite: {_settings.AlertThresholdRamPct:0.#}%)", 2);
+            }
+        }
+    }
+
+    private float? MainGpuClock()
+    {
+        if (_gpus.Count == 0) return null;
+        if (_gpus[0].NvmlHandle != IntPtr.Zero)
+        {
+            var c = Nvml.Clock(_gpus[0].NvmlHandle, Nvml.ClockGraphics);
+            if (c.HasValue) return c.Value;
+        }
+        return _monitor.Rows.FirstOrDefault(r => r.Hardware == _gpus[0].Name && r.Type == SensorType.Clock && r.Name.Contains("Core"))?.RawValue;
+    }
+
+    private double? GetGpuHotspot()
+    {
+        if (_gpus.Count == 0) return null;
+        var gRows = _monitor.Rows.Where(r => r.Hardware == _gpus[0].Name).ToList();
+        return gRows.FirstOrDefault(r => r.Name.Contains("Hot Spot", StringComparison.OrdinalIgnoreCase) || r.Name.Contains("Hotspot", StringComparison.OrdinalIgnoreCase))?.RawValue;
+    }
+
+    private async Task CheckUpdateSilentAsync()
+    {
+        try
+        {
+            var res = await _updateService.CheckForUpdateAsync();
+            if (res.HasUpdate)
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    _tray?.ShowBalloon("Atualização Disponível", $"Nova versão {res.RemoteVersion} do ThermoSync disponível no GitHub!", 1);
+                });
+            }
+        }
+        catch { }
     }
 
     // ---------------- Sistema ----------------
