@@ -235,9 +235,11 @@ public partial class MainWindow
             rows.Add(new("", "Memória RAM", $"{total / 1073741824.0:0} GB instalados", "—", $"{used / total:P0}", "—",
                          $"{used / 1073741824.0:0.0} GB", "PageSystem"));
         }
-        if (_drives.FirstOrDefault(d => d.Letter.StartsWith("C", StringComparison.OrdinalIgnoreCase)) is { } c0)
-            rows.Add(new("", $"Disco {c0.Letter}", c0.Disk.Length > 0 ? c0.Disk : c0.Kind, "—", c0.UsedPercent, "—",
-                         $"{DriveCard.Fmt(c0.Free)} livres", "PageDisks"));
+        foreach (var drive in _drives)
+        {
+            rows.Add(new("", $"Disco {drive.Letter}", drive.Disk.Length > 0 ? drive.Disk : drive.Kind, "—", drive.UsedPercent, "—",
+                         $"{DriveCard.Fmt(drive.Free)} livres", "PageDisks"));
+        }
         DashComponents.ItemsSource = rows;
     }
 

@@ -82,18 +82,18 @@ public partial class MainWindow
         SetGameBenchRunning(BtnDiskBench, true);
         DiskDrivePanel.IsEnabled = DiskSizePanel.IsEnabled = false;
         DiskResult.ItemsSource = null;
+        UpdateDiskBenchLive();
         (string Phase, double Frac) progress = ("Preparando…", 0);
         var timer = new DispatcherTimer(TimeSpan.FromMilliseconds(150), DispatcherPriority.Normal, (_, _) =>
         {
             DiskStatus.Text = progress.Phase;
             DiskProgress.ScaleX = progress.Frac;
+            UpdateDiskBenchLive();
         }, Dispatcher);
         timer.Start();
 
         try
         {
-            // Os sensores consultam o driver do disco: pausa durante o teste para não atrapalhar a medição.
-            _gpuBenchActive = true;
             var r = await Task.Run(() => DiskBench.Run(root, fileMb, (phase, f) => progress = (phase, f), ct), ct);
             ct.ThrowIfCancellationRequested();
 
@@ -118,10 +118,10 @@ public partial class MainWindow
         }
         finally
         {
-            _gpuBenchActive = false;
             timer.Stop();
             DiskProgress.ScaleX = 0;
             DiskDrivePanel.IsEnabled = DiskSizePanel.IsEnabled = true;
+            UpdateDiskBenchLive();
             SetGameBenchRunning(BtnDiskBench, false);
         }
     }

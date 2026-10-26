@@ -42,23 +42,23 @@ public partial class MainWindow
         SetGameBenchRunning(BtnRtBench, true);
         RtResult.ItemsSource = null;
         RtVerdict.Text = "";
+        UpdateRtBenchLive();
         var timer = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Normal, (_, _) =>
         {
             RtFpsNow.Text = bench.CurrentFps > 0 ? $"{bench.CurrentFps:0}" : "—";
             RtPhase.Text = bench.Phase.Length > 0 ? bench.Phase : "—";
             RtProgress.ScaleX = bench.Progress;
             RtStatus.Text = $"Rodando · {size[0]}x{size[1]} · {PresetName(preset)} · {bench.Progress:P0}";
+            UpdateRtBenchLive();
         }, Dispatcher);
         timer.Start();
 
-        // Igual à cena de jogo: sensores e overlay pausados (consultas ao driver geram engasgos no frametime).
-        _gpuBenchActive = true;
         bool overlayWasOn = ChkOverlay.IsChecked == true;
         if (overlayWasOn) ChkOverlay.IsChecked = false;
         var r = await Task.Factory.StartNew(bench.Run, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         timer.Stop();
-        _gpuBenchActive = false;
         if (overlayWasOn) ChkOverlay.IsChecked = true;
+        UpdateRtBenchLive();
         SetGameBenchRunning(BtnRtBench, false);
         RtProgress.ScaleX = 0;
         RtFpsNow.Text = "—";

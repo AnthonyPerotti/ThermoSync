@@ -137,9 +137,6 @@ public partial class MainWindow : Window
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) =>
         {
-            // Durante a cena de GPU as leituras de sensores (NVML/driver) ficam pausadas: cada consulta trava o driver
-            // por um instante e aparecia como engasgo no 1% low do benchmark.
-            if (_gpuBenchActive) return;
             _monitor.Refresh();
             if (_monitor.IsOpen) StatusText.Text = $"{_monitor.Rows.Count} sensores · atualizado {DateTime.Now:HH:mm:ss}";
             UpdateStressPanel();
@@ -1007,20 +1004,145 @@ public partial class MainWindow : Window
         else BenchProgress.ScaleX = 0;
     }
 
-    /// <summary>Temperatura, clock médio dos núcleos e consumo da CPU (atualizado junto com os sensores).</summary>
+    /// <summary>Atualiza as métricas de estresse em tempo real de acordo com a aba de benchmark selecionada.</summary>
     private void UpdateBenchLive()
     {
+        if (BenchPanelRender?.IsVisible == true) UpdateBenchRenderLive();
+        else if (BenchPanelGpu?.IsVisible == true) UpdateGpuBenchLive();
+        else if (BenchPanelRt?.IsVisible == true) UpdateRtBenchLive();
+        else if (BenchPanelSim?.IsVisible == true) UpdateSimBenchLive();
+        else if (BenchPanelMem?.IsVisible == true) UpdateMemBenchLive();
+        else if (BenchPanelDisk?.IsVisible == true) UpdateDiskBenchLive();
+    }
+
+    private void UpdateBenchRenderLive()
+    {
+        if (BenchLive == null) return;
         var clocks = _monitor.Rows.Where(r => r.HardwareType == HardwareType.Cpu && r.Type == SensorType.Clock &&
                                               r.Name.StartsWith("Core #") && r.RawValue > 0).Select(r => r.RawValue!.Value).ToList();
         BenchLive.ItemsSource = new[]
         {
-            new KeyValuePair<string, string>("CPU", GameCatalog.ShortCpuName(_cpuName)),
+            new KeyValuePair<string, string>("Processador", GameCatalog.ShortCpuName(_cpuName)),
             new KeyValuePair<string, string>("Threads", $"{Environment.ProcessorCount}"),
             new KeyValuePair<string, string>("Temperatura", _monitor.CpuTemperature is float t ? $"{t:0.#} °C" : "—"),
             new KeyValuePair<string, string>("Clock médio", clocks.Count > 0 ? $"{clocks.Average():0} MHz" : "—"),
             new KeyValuePair<string, string>("Consumo", _monitor.CpuPower is float p ? $"{p:0.#} W" : "—"),
-            new KeyValuePair<string, string>("Carga", _monitor.CpuLoad is float l ? $"{l:0} %" : "—"),
+            new KeyValuePair<string, string>("Carga da CPU", _monitor.CpuLoad is float l ? $"{l:0} %" : "—"),
         };
+    }
+
+    private List<KeyValuePair<string, string>> GetGpuLiveMetrics()
+    {
+        string name = _gpus.Count > 0 ? GameCatalog.ShortGpuName(_gpus[0].Name) : "—";
+        float? temp = MainGpuTemp();
+        double? hotspot = GetGpuHotspot();
+        float? clock = MainGpuClock();
+        float? load = MainGpuLoad();
+        float? power = MainGpuPower();
+
+        string vram = "—";
+        if (_gpus.Count > 0 && _gpus[0].NvmlHandle != IntPtr.Zero && Nvml.MemoryInfo(_gpus[0].NvmlHandle) is Nvml.Memory m && m.Total > 0)
+        {
+            double usedGb = m.Used / 1073741824.0;
+            double totalGb = m.Total / 1073741824.0;
+            vram = $"{usedGb:0.0} / {totalGb:0.0} GB ({(double)m.Used / m.Total:P0})";
+        }
+        else if (_gpus.Count > 0 && _gpus[0].VramBytes > 0)
+        {
+            vram = $"{_gpus[0].VramBytes / 1073741824.0:0.#} GB";
+        }
+
+        var items = new List<KeyValuePair<string, string>>
+        {
+            new("Placa de vídeo", name),
+            new("Temperatura", temp is float t ? $"{t:0.#} °C" : "—"),
+        };
+        if (hotspot.HasValue) items.Add(new("Hotspot", $"{hotspot.Value:0.#} °C"));
+        items.Add(new("Clock do núcleo", clock is float c ? $"{c:0} MHz" : "—"));
+        items.Add(new("Carga da GPU", load is float l ? $"{l:0} %" : "—"));
+        items.Add(new("Consumo", power is float p ? $"{p:0.#} W" : "—"));
+        items.Add(new("VRAM", vram));
+        return items;
+    }
+
+    public void UpdateGpuBenchLive()
+    {
+        if (GbLive != null) GbLive.ItemsSource = GetGpuLiveMetrics();
+    }
+
+    public void UpdateRtBenchLive()
+    {
+        if (RtLive != null) RtLive.ItemsSource = GetGpuLiveMetrics();
+    }
+
+    public void UpdateSimBenchLive()
+    {
+        if (SimLive == null) return;
+        var clocks = _monitor.Rows.Where(r => r.HardwareType == HardwareType.Cpu && r.Type == SensorType.Clock &&
+                                              r.Name.StartsWith("Core #") && r.RawValue > 0).Select(r => r.RawValue!.Value).ToList();
+        SimLive.ItemsSource = new[]
+        {
+            new KeyValuePair<string, string>("Processador", GameCatalog.ShortCpuName(_cpuName)),
+            new KeyValuePair<string, string>("Threads ativas", $"{Environment.ProcessorCount}"),
+            new KeyValuePair<string, string>("Temperatura", _monitor.CpuTemperature is float t ? $"{t:0.#} °C" : "—"),
+            new KeyValuePair<string, string>("Clock médio", clocks.Count > 0 ? $"{clocks.Average():0} MHz" : "—"),
+            new KeyValuePair<string, string>("Consumo", _monitor.CpuPower is float p ? $"{p:0.#} W" : "—"),
+            new KeyValuePair<string, string>("Carga da CPU", _monitor.CpuLoad is float l ? $"{l:0} %" : "—"),
+        };
+    }
+
+    public void UpdateMemBenchLive()
+    {
+        if (MemLive == null) return;
+        var (total, avail) = Optimizer.MemoryStatus();
+        double used = total > 0 ? total - avail : 0;
+        double ramPct = total > 0 ? used / total : 0;
+
+        MemLive.ItemsSource = new[]
+        {
+            new KeyValuePair<string, string>("RAM instalada", total > 0 ? $"{total / 1073741824.0:0} GB" : "—"),
+            new KeyValuePair<string, string>("RAM em uso", total > 0 ? $"{used / 1073741824.0:0.0} GB ({ramPct:P0})" : "—"),
+            new KeyValuePair<string, string>("RAM livre", total > 0 ? $"{avail / 1073741824.0:0.0} GB" : "—"),
+            new KeyValuePair<string, string>("Carga da CPU", _monitor.CpuLoad is float l ? $"{l:0} %" : "—"),
+            new KeyValuePair<string, string>("Temp. da CPU", _monitor.CpuTemperature is float t ? $"{t:0.#} °C" : "—"),
+            new KeyValuePair<string, string>("Consumo da CPU", _monitor.CpuPower is float p ? $"{p:0.#} W" : "—"),
+        };
+    }
+
+    public void UpdateDiskBenchLive()
+    {
+        if (DiskLive == null) return;
+        string root = CheckedTag(DiskDrivePanel) ?? (_drives.Count > 0 ? _drives[0].Letter : "C:\\");
+        if (!root.EndsWith('\\')) root += "\\";
+        string letter = root.TrimEnd('\\');
+        var card = _drives.FirstOrDefault(d => d.Letter.Equals(letter, StringComparison.OrdinalIgnoreCase));
+
+        float? diskTemp = null;
+        float? diskLoad = null;
+        if (card != null && !string.IsNullOrEmpty(card.Disk))
+        {
+            var storageSensors = _monitor.Rows.Where(r => r.HardwareType == HardwareType.Storage &&
+                (r.Hardware.Contains(card.Disk, StringComparison.OrdinalIgnoreCase) || card.Disk.Contains(r.Hardware, StringComparison.OrdinalIgnoreCase))).ToList();
+            diskTemp = storageSensors.FirstOrDefault(r => r.Type == SensorType.Temperature && r.RawValue is > 0)?.RawValue;
+            diskLoad = storageSensors.FirstOrDefault(r => r.Type == SensorType.Load)?.RawValue;
+        }
+        if (diskTemp == null)
+        {
+            var anyStorage = _monitor.Rows.Where(r => r.HardwareType == HardwareType.Storage && r.Type == SensorType.Temperature && r.RawValue is > 0).ToList();
+            if (anyStorage.Count == 1) diskTemp = anyStorage[0].RawValue;
+        }
+
+        var items = new List<KeyValuePair<string, string>>
+        {
+            new("Unidade", root),
+            new("Disco físico", card?.Disk.Length > 0 ? card.Disk : (card?.Kind ?? "—")),
+            new("Temperatura", diskTemp is float dt ? $"{dt:0} °C" : "—"),
+            new("Espaço livre", card != null ? $"{DriveCard.Fmt(card.Free)} livres ({card.UsedPercent} usado)" : "—"),
+        };
+        if (diskLoad.HasValue) items.Add(new("Carga do disco", $"{diskLoad.Value:0} %"));
+        items.Add(new("Carga da CPU", _monitor.CpuLoad is float cl ? $"{cl:0} %" : "—"));
+
+        DiskLive.ItemsSource = items;
     }
 
     private void UpdateBenchHistory()
@@ -1249,7 +1371,6 @@ public partial class MainWindow : Window
     public sealed record MemRow(string Label, string Value, string Hint);
     private bool _gameBenchRunning;
     private GpuGameBench? _gpuBench;
-    private bool _gpuBenchActive;
     private CancellationTokenSource? _gameBenchCts;
     private System.Windows.Media.Imaging.WriteableBitmap? _simBitmap;
     private int[] _simPixels = Array.Empty<int>();
@@ -1278,6 +1399,7 @@ public partial class MainWindow : Window
             _ => "Benchmark de CPU por renderização 3D (path tracing), no mesmo princípio do Cinebench",
         };
         UpdateGameBenchHistory();
+        UpdateBenchLive();
     }
 
     private void SaveBenchRecord(string test, double score, string summary)
@@ -1332,23 +1454,7 @@ public partial class MainWindow : Window
         };
         SetGameBenchRunning(BtnGpuBench, true);
         GbResult.ItemsSource = null;
-
-        // Snapshot sensor data before pausing (GPU sensors are paused during the test to avoid frametime jitter).
-        string gpuName = _gpus.Count > 0 ? _gpus[0].Name : "—";
-        string vram = _gpus.Count > 0 && _gpus[0].VramBytes > 0 ? $"{_gpus[0].VramBytes / 1073741824.0:0.#} GB" : "—";
-        string tempSnap = MainGpuTemp() is float ts ? $"{ts:0} °C" : "—";
-        string clockSnap = MainGpuClock() is float cs ? $"{cs:0} MHz" : "—";
-        string powerSnap = MainGpuPower() is float ps ? $"{ps:0} W" : "—";
-        GbLive.ItemsSource = new[]
-        {
-            new KeyValuePair<string, string>("GPU", gpuName),
-            new KeyValuePair<string, string>("VRAM", vram),
-            new KeyValuePair<string, string>("Resolucao", $"{size[0]}x{size[1]}"),
-            new KeyValuePair<string, string>("Duracao", $"{secs} s"),
-            new KeyValuePair<string, string>("Temp. (antes)", tempSnap),
-            new KeyValuePair<string, string>("Clock (antes)", clockSnap),
-            new KeyValuePair<string, string>("Consumo (antes)", powerSnap),
-        };
+        UpdateGpuBenchLive();
 
         var bench = _gpuBench;
         var timer = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Normal, (_, _) =>
@@ -1356,19 +1462,19 @@ public partial class MainWindow : Window
             GbFpsNow.Text = bench.CurrentFps > 0 ? $"{bench.CurrentFps:0}" : "—";
             GbProgress.ScaleX = bench.Progress;
             GbStatus.Text = $"Rodando · {size[0]}x{size[1]} · {bench.Progress:P0}";
+            GbGpuNow.Text = MainGpuTemp() is float gt ? $"{gt:0} °C" : "—";
+            UpdateGpuBenchLive();
         }, Dispatcher);
         timer.Start();
-        _gpuBenchActive = true;
-        GbGpuNow.Text = "sensores pausados";
         bool overlayWasOn = ChkOverlay.IsChecked == true;
         if (overlayWasOn) ChkOverlay.IsChecked = false; // o overlay também consulta a GPU
 
         // Thread dedicada: a cena roda num loop próprio com prioridade alta.
         var r = await Task.Factory.StartNew(bench.Run, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         timer.Stop();
-        _gpuBenchActive = false;
         if (overlayWasOn) ChkOverlay.IsChecked = true;
         GbGpuNow.Text = "—";
+        UpdateGpuBenchLive();
         SetGameBenchRunning(BtnGpuBench, false);
         GbProgress.ScaleX = 0;
         GbFpsNow.Text = "—";
@@ -1409,12 +1515,14 @@ public partial class MainWindow : Window
         SetGameBenchRunning(BtnSimBench, true);
         SimResult.ItemsSource = null;
         SimStatus.Text = "Aquecendo (2 s)…";
+        UpdateSimBenchLive();
         var timer = new DispatcherTimer(TimeSpan.FromMilliseconds(100), DispatcherPriority.Render, (_, _) =>
         {
             DrawSim(sim);
             SimProgress.ScaleX = sim.Progress;
             if (sim.FramesDone > 0) SimStatus.Text = $"Simulando · {sim.Progress:P0}";
             SimFpsNow.Text = sim.CurrentFps > 0 ? $"{sim.CurrentFps:0} FPS" : "";
+            UpdateSimBenchLive();
         }, Dispatcher);
         timer.Start();
 
@@ -1465,11 +1573,13 @@ public partial class MainWindow : Window
         SetGameBenchRunning(BtnMemBench, true);
         var rows = new List<MemRow>();
         void Show() => MemResult.ItemsSource = rows.ToList();
+        UpdateMemBenchLive();
         (string Phase, double Frac) progress = ("", 0);
         var timer = new DispatcherTimer(TimeSpan.FromMilliseconds(150), DispatcherPriority.Normal, (_, _) =>
         {
             MemStatus.Text = progress.Phase;
             MemProgress.ScaleX = progress.Frac;
+            UpdateMemBenchLive();
         }, Dispatcher);
         timer.Start();
 

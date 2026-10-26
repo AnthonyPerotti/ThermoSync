@@ -42,7 +42,7 @@ public sealed class GpuGameBench
 
     private const int TerrainN = 512;        // vértices por lado
     private const float TerrainSize = 800f;
-    private const float WaterY = 6f;
+    private const float WaterY = 7.5f;
     private const int TreeCount = 40_000;
 
     /// <summary>Altura do terreno: ruído fractal (fBm) com um vale sinuoso cortando o mapa.</summary>
@@ -54,7 +54,10 @@ public sealed class GpuGameBench
         float river = MathF.Sin(z * 0.007f) * 120;                       // curva do vale
         float d = MathF.Abs(x - river);
         float valley = MathF.Min(1, d / 90f);
-        return h * (0.25f + 0.75f * valley * valley) - (1 - valley) * 4;
+        float baseH = h * (0.20f + 0.80f * valley * valley);
+        // Canal do rio cavado no fundo do vale para garantir água contínua
+        float riverBed = MathF.Min(1, d / 28f);
+        return baseH * (0.55f + 0.45f * riverBed) - (1 - riverBed) * 6.5f;
     }
 
     private static float ValueNoise(float x, float z)
@@ -178,7 +181,7 @@ public sealed class GpuGameBench
         float h = WaterY;
         for (int dz = -2; dz <= 2; dz++)
             for (int dx = -2; dx <= 2; dx++) h = MathF.Max(h, TerrainHeight(p.X + dx * 10, p.Y + dz * 10));
-        return h + 26;
+        return h + 32;
     }
 
     // ------------------------------------------------------------------ shaders
@@ -233,11 +236,11 @@ float4 TreeShadowVS(VSIn i) : SV_POSITION { float3x3 r; return mul(float4(TreeWo
 float3 Sky(float3 dir)
 {
     float up = saturate(dir.y);
-    float3 horizon = float3(0.55, 0.52, 0.50);
-    float3 zenith  = float3(0.18, 0.30, 0.58);
-    float3 col = lerp(horizon, zenith, pow(up, 0.6));
+    float3 horizon = float3(0.68, 0.79, 0.92);
+    float3 zenith  = float3(0.12, 0.42, 0.88);
+    float3 col = lerp(horizon, zenith, pow(up, 0.5));
     float sun = saturate(dot(dir, -SunDir));
-    col += pow(sun, 600) * float3(12, 10, 6) + pow(sun, 12) * float3(0.30, 0.25, 0.15);
+    col += pow(sun, 450) * float3(16, 14, 10) + pow(sun, 12) * float3(0.50, 0.40, 0.25);
     return col;
 }
 
@@ -257,15 +260,17 @@ float3 Shade(float3 wpos, float3 n, float3 albedo)
 {
     float3 l = -SunDir;
     float ndl = saturate(dot(n, l));
-    float3 sunCol  = float3(1.45, 1.35, 1.15);
+    float3 sunCol  = float3(1.75, 1.62, 1.38);
     float3 direct  = ndl * Shadow(wpos, n) * sunCol;
-    float3 skyAmb  = float3(0.06, 0.08, 0.14);
-    float3 gndAmb  = float3(0.05, 0.04, 0.03);
+    float3 skyAmb  = float3(0.20, 0.28, 0.42);
+    float3 gndAmb  = float3(0.08, 0.07, 0.05);
     float3 ambient = lerp(gndAmb, skyAmb, n.y * 0.5 + 0.5);
     float3 col = albedo * (direct + ambient);
     float dist = length(wpos - CamPos);
-    float fog = 1 - exp(-dist * 0.0022);
-    return lerp(col, Sky(normalize(wpos - CamPos)), fog);
+    // Neblina suave atmosférica azulada em vez de cinza leitoso opaco
+    float fog = 1 - exp(-pow(dist * 0.00095, 1.3));
+    float3 fogCol = lerp(float3(0.70, 0.80, 0.92), Sky(normalize(wpos - CamPos)), 0.7);
+    return lerp(col, fogCol, fog);
 }
 
 float4 TerrainPS(PSIn i) : SV_TARGET
@@ -273,20 +278,20 @@ float4 TerrainPS(PSIn i) : SV_TARGET
     float3 n = normalize(i.nrm);
     float slope = 1 - n.y;
     float h = i.wpos.y;
-    float3 grass = lerp(float3(0.10, 0.20, 0.04), float3(0.06, 0.12, 0.03), saturate((h - 8) / 25));
-    float3 rock  = float3(0.22, 0.18, 0.14);
-    float3 snow  = float3(0.72, 0.73, 0.78);
-    float3 albedo = lerp(grass, rock, saturate((slope - 0.25) * 4));
-    albedo = lerp(albedo, snow, saturate((h - 62) / 10) * saturate(1 - slope * 3));
-    float noise = 0.9 + 0.1 * frac(sin(dot(floor(i.wpos.xz * 2), float2(12.9898, 78.233))) * 43758.5453);
+    float3 grass = lerp(float3(0.16, 0.36, 0.09), float3(0.11, 0.26, 0.07), saturate((h - 8) / 30));
+    float3 rock  = float3(0.32, 0.29, 0.26);
+    float3 snow  = float3(0.92, 0.94, 0.98);
+    float3 albedo = lerp(grass, rock, saturate((slope - 0.22) * 4.5));
+    albedo = lerp(albedo, snow, saturate((h - 58) / 12) * saturate(1 - slope * 2.5));
+    float noise = 0.92 + 0.08 * frac(sin(dot(floor(i.wpos.xz * 2), float2(12.9898, 78.233))) * 43758.5453);
     albedo *= noise;
     return float4(Shade(i.wpos, n, albedo), 1);
 }
 
 float4 TreePS(PSIn i) : SV_TARGET
 {
-    float3 trunk  = float3(0.12, 0.07, 0.03);
-    float3 leaves = float3(0.04, 0.10, 0.02);
+    float3 trunk  = float3(0.20, 0.12, 0.06);
+    float3 leaves = float3(0.06, 0.22, 0.07);
     float3 albedo = i.mat < 1.5 ? trunk : leaves;
     return float4(Shade(i.wpos, normalize(i.nrm), albedo), 1);
 }
@@ -305,17 +310,28 @@ float4 WaterPS(PSIn i) : SV_TARGET
     [unroll] for (int k = 0; k < 6; k++)           // ondas somadas
     {
         float2 d = float2(cos(k * 1.7), sin(k * 1.7));
-        float f = 0.15 * (k + 1), ph = dot(d, p) * f + Time * (1 + k * 0.4);
-        n.xz += d * cos(ph) * 0.06 / (k + 1);
+        float f = 0.12 * (k + 1), ph = dot(d, p) * f + Time * (1.1 + k * 0.35);
+        n.xz += d * cos(ph) * 0.08 / (k + 1);
     }
     n = normalize(n);
     float3 v = normalize(i.wpos - CamPos);
-    float fres = 0.04 + 0.96 * pow(1 - saturate(dot(-v, n)), 5);
-    float3 refl = Sky(reflect(v, n)) * Shadow(i.wpos, n);
-    float3 deep = float3(0.01, 0.04, 0.08);
-    float3 col = lerp(deep, refl, fres);
-    float fog = 1 - exp(-length(i.wpos - CamPos) * 0.0022);
-    return float4(lerp(col, Sky(v), fog), 1);
+    float fres = 0.06 + 0.94 * pow(1 - saturate(dot(-v, n)), 4);
+    float3 refl = Sky(reflect(v, n));
+    float3 deep = float3(0.04, 0.22, 0.44);
+    float3 shallow = float3(0.10, 0.40, 0.58);
+    float3 col = lerp(shallow, deep, 0.55);
+    col = lerp(col, refl, fres);
+
+    // Reflexo especular do sol na água
+    float3 sunDir = -SunDir;
+    float3 h = normalize(sunDir - v);
+    float spec = pow(saturate(dot(n, h)), 160);
+    col += spec * float3(3.5, 3.2, 2.4) * Shadow(i.wpos, n);
+
+    float dist = length(i.wpos - CamPos);
+    float fog = 1 - exp(-pow(dist * 0.00095, 1.3));
+    float3 fogCol = lerp(float3(0.70, 0.80, 0.92), Sky(v), 0.7);
+    return float4(lerp(col, fogCol, fog), 1);
 }
 
 struct FsOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };
@@ -335,9 +351,10 @@ float4 SkyPS(FsOut i) : SV_TARGET
 float4 PostPS(FsOut i) : SV_TARGET
 {
     float3 c = Hdr.Sample(LinearSampler, i.uv).rgb;
+    c *= 1.15;
     c = c * (2.51 * c + 0.03) / (c * (2.43 * c + 0.59) + 0.14);         // ACES
     float2 d = i.uv - 0.5;
-    c *= 1 - dot(d, d) * 0.9;                                           // vinheta
+    c *= 1 - dot(d, d) * 0.4;                                           // vinheta suave
     c = pow(saturate(c), 1.0 / 2.2);                                    // gamma per-channel
     return float4(c, 1);
 }";

@@ -2241,6 +2241,21 @@
                                         <ItemsControl x:Name="RtResult" ItemTemplate="{StaticResource KeyValueRow}"/>
                                     </StackPanel>
                                 </Border>
+                                <Border Style="{StaticResource CardBorder}" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="DURANTE O TESTE" Style="{StaticResource Label}"/>
+                                        <ItemsControl x:Name="RtLive">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,3">
+                                                        <TextBlock Text="{Binding Key}" Foreground="{DynamicResource Muted}"/>
+                                                        <TextBlock Text="{Binding Value}" FontFamily="{StaticResource Mono}" HorizontalAlignment="Right"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
                                 <Border Style="{StaticResource CardBorder}">
                                     <StackPanel>
                                         <TextBlock Text="HISTÓRICO" Style="{StaticResource Label}"/>
@@ -2301,6 +2316,21 @@
                                         <ItemsControl x:Name="SimResult" ItemTemplate="{StaticResource KeyValueRow}"/>
                                     </StackPanel>
                                 </Border>
+                                <Border Style="{StaticResource CardBorder}" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="DURANTE O TESTE" Style="{StaticResource Label}"/>
+                                        <ItemsControl x:Name="SimLive">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,3">
+                                                        <TextBlock Text="{Binding Key}" Foreground="{DynamicResource Muted}"/>
+                                                        <TextBlock Text="{Binding Value}" FontFamily="{StaticResource Mono}" HorizontalAlignment="Right"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
                                 <Border Style="{StaticResource CardBorder}">
                                     <StackPanel>
                                         <TextBlock Text="HISTÓRICO" Style="{StaticResource Label}"/>
@@ -2354,6 +2384,21 @@
                                             pasta temporária e são apagados no final.
                                         </TextBlock>
                                         <Button x:Name="BtnMemBench" Style="{StaticResource PrimaryButton}" Content="INICIAR" Click="BtnMemBench_Click"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource CardBorder}" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="DURANTE O TESTE" Style="{StaticResource Label}"/>
+                                        <ItemsControl x:Name="MemLive">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,3">
+                                                        <TextBlock Text="{Binding Key}" Foreground="{DynamicResource Muted}"/>
+                                                        <TextBlock Text="{Binding Value}" FontFamily="{StaticResource Mono}" HorizontalAlignment="Right"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
                                     </StackPanel>
                                 </Border>
                                 <Border Style="{StaticResource CardBorder}">
@@ -2416,6 +2461,21 @@
                                             Grava um arquivo temporário na unidade escolhida e o apaga no final. Feche outros programas pesados antes.
                                         </TextBlock>
                                         <Button x:Name="BtnDiskBench" Style="{StaticResource PrimaryButton}" Content="INICIAR" Click="BtnDiskBench_Click"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource CardBorder}" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="DURANTE O TESTE" Style="{StaticResource Label}"/>
+                                        <ItemsControl x:Name="DiskLive">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,3">
+                                                        <TextBlock Text="{Binding Key}" Foreground="{DynamicResource Muted}"/>
+                                                        <TextBlock Text="{Binding Value}" FontFamily="{StaticResource Mono}" HorizontalAlignment="Right"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
                                     </StackPanel>
                                 </Border>
                                 <Border Style="{StaticResource CardBorder}">

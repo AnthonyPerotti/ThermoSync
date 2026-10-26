@@ -303,7 +303,6 @@ public partial class MainWindow
                     Duration = TimeSpan.FromSeconds(30.0),
                     AdapterName = ((_gpus.Count > 0) ? _gpus[0].Name : "")
                 };
-                _gpuBenchActive = true;
                 using (ct.Register(gb.Cancel))
                 {
                     GpuGameResult? gpuGameResult = await Task.Factory.StartNew((Func<GpuGameResult?>)gb.Run, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
@@ -316,7 +315,6 @@ public partial class MainWindow
                         fail = "a cena de GPU falhou (" + gb.Error + ")";
                     }
                 }
-                _gpuBenchActive = false;
             }
             if (fail == null && !ct.IsCancellationRequested)
             {
@@ -427,7 +425,6 @@ public partial class MainWindow
         {
             stress.Stop();
             burn.Stop();
-            _gpuBenchActive = false;
         }
         _ocRunning = false;
         BtnOcCheck.Content = "INICIAR VERIFICAÇÃO";
