@@ -1,5 +1,24 @@
 # Registro de Mudancas - ThermoSync
 
+## Versao 1.5.0
+
+### Cena de Jogo (GPU) Colorizada
+- Corrigida cena que renderizava inteiramente em escala de cinza: o tone mapping (`PostPS`) usava apenas o canal R para gerar luminancia monocromatica. Agora aplica correcao gamma por canal RGB independente.
+- Shader `Shade` convertido para aceitar albedos `float3` (RGB) em vez de `float` (escalar cinza).
+- Terreno colorido com grama verde, rocha marrom e neve branca nos picos, com transicoes suaves por altitude e inclinacao.
+- Arvores com tronco marrom e folhagem verde escuro.
+- Agua com tom azul profundo e reflexo Fresnel contra ceu azulado.
+- Ceu com gradiente horizonte-zenite (tons quentes no horizonte, azul profundo no zenite), sol com halo amarelado.
+- Iluminacao solar com tonalidade quente e luz ambiente com separacao ceu/chao para maior realismo.
+
+### Painel "Durante o Teste" na Cena de Jogo (GPU)
+- Adicionado card lateral `DURANTE O TESTE` exibindo snapshot dos sensores da GPU capturados imediatamente antes do inicio do benchmark: nome da GPU, VRAM, resolucao e duracao do teste, temperatura, clock e consumo (antes do teste).
+- Os sensores sao pausados durante a medicao para evitar engasgos no frametime (consultas ao driver NVML causam micro-stutters); o painel deixa claro que os valores sao da leitura pre-teste.
+
+### Historico de Benchmarks Melhorado
+- Novo template `BenchHistory` para todas as secoes de historico (Render/CPU, Cena de Jogo/GPU, Ray Tracing, Simulacao/CPU, Memoria e Disco): cada entrada agora exibe data completa (dd/MM/yyyy HH:mm), nota destacada em negrito, barra proporcional e detalhes expandidos em linha separada (sem truncar).
+- Substituido o template generico `Meter` (rotulo + valor numa unica linha com truncamento) por layout estruturado que facilita a comparacao visual entre execucoes.
+
 ## Versao 1.4.0
 
 ### Instalador de Apps e Utilitarios Pos-Formatacao

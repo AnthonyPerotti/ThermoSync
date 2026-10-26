@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Threading;
 
 namespace ThermoSync;
@@ -15,7 +15,9 @@ public partial class MainWindow
     {
         var list = _settings.BenchRecords.Where(r => r.Test.StartsWith("rt:")).OrderByDescending(r => r.Date).ToList();
         var best = list.GroupBy(r => r.Test).ToDictionary(g => g.Key, g => g.Max(r => r.Score));
-        return list.Select(r => new MeterItem($"{r.Date:dd/MM HH:mm}", r.Summary, best[r.Test] > 0 ? r.Score / best[r.Test] : 0)).ToList();
+        return list.Select(r => new MeterItem(
+            $"{r.Date:dd/MM/yyyy  HH:mm}", "", best[r.Test] > 0 ? r.Score / best[r.Test] : 0,
+            $"{r.Score:N0} pts", r.Summary)).ToList();
     }
 
     private async void BtnRtBench_Click(object sender, RoutedEventArgs e)

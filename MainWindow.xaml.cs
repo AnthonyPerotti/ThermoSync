@@ -53,7 +53,7 @@ public partial class MainWindow : Window
     private bool _reallyClose;
 
     // Gargalo + overlay
-    public sealed record MeterItem(string Label, string Value, double Fraction);
+    public sealed record MeterItem(string Label, string Value, double Fraction, string? Score = null, string? Detail = null);
     private readonly FrameMonitor _frames = new();
     private BottleneckSession? _bnSession;
     private double _balanceRatio = 1;
@@ -1030,10 +1030,11 @@ public partial class MainWindow : Window
         double bestMt = runs.Max(r => r.Multi) ?? 1, bestSt = runs.Max(r => r.Single) ?? 1;
         BenchHistory.ItemsSource = runs.Select(r =>
         {
-            string label = $"{r.Date:dd/MM HH:mm}{(r.Sustained ? " · 10 min" : "")}";
-            string value = $"{(r.Multi is double m ? $"{m:N0}" : "—")} / {(r.Single is double s ? $"{s:N0}" : "—")}";
-            double frac = r.Multi is double mm ? mm / bestMt : r.Single is double ss ? ss / bestSt : 0;
-            return new MeterItem(label, value, frac);
+            string label = $"{r.Date:dd/MM/yyyy  HH:mm}{(r.Sustained ? "  (10 min)" : "")}";
+            string score = r.Multi is double m ? $"{m:N0} pts" : r.Single is double s ? $"{s:N0} pts" : "—";
+            string detail = $"Multi: {(r.Multi is double mm ? $"{mm:N0}" : "—")}  |  Single: {(r.Single is double ss ? $"{ss:N0}" : "—")}";
+            double frac = r.Multi is double fm ? fm / bestMt : r.Single is double fs ? fs / bestSt : 0;
+            return new MeterItem(label, "", frac, score, detail);
         }).ToList();
     }
 
@@ -1296,7 +1297,9 @@ public partial class MainWindow : Window
         {
             var list = _settings.BenchRecords.Where(r => r.Test == test).ToList();
             double best = list.Count > 0 ? list.Max(r => r.Score) : 1;
-            return list.Select(r => new MeterItem($"{r.Date:dd/MM HH:mm}", r.Summary, best > 0 ? r.Score / best : 0)).ToList();
+            return list.Select(r => new MeterItem(
+                $"{r.Date:dd/MM/yyyy  HH:mm}", "", best > 0 ? r.Score / best : 0,
+                $"{r.Score:N0} pts", r.Summary)).ToList();
         }
         GbHistory.ItemsSource = For("gpu");
         RtHistory.ItemsSource = RtHistoryItems();
@@ -1329,6 +1332,24 @@ public partial class MainWindow : Window
         };
         SetGameBenchRunning(BtnGpuBench, true);
         GbResult.ItemsSource = null;
+
+        // Snapshot sensor data before pausing (GPU sensors are paused during the test to avoid frametime jitter).
+        string gpuName = _gpus.Count > 0 ? _gpus[0].Name : "—";
+        string vram = _gpus.Count > 0 && _gpus[0].VramBytes > 0 ? $"{_gpus[0].VramBytes / 1073741824.0:0.#} GB" : "—";
+        string tempSnap = MainGpuTemp() is float ts ? $"{ts:0} °C" : "—";
+        string clockSnap = MainGpuClock() is float cs ? $"{cs:0} MHz" : "—";
+        string powerSnap = MainGpuPower() is float ps ? $"{ps:0} W" : "—";
+        GbLive.ItemsSource = new[]
+        {
+            new KeyValuePair<string, string>("GPU", gpuName),
+            new KeyValuePair<string, string>("VRAM", vram),
+            new KeyValuePair<string, string>("Resolucao", $"{size[0]}x{size[1]}"),
+            new KeyValuePair<string, string>("Duracao", $"{secs} s"),
+            new KeyValuePair<string, string>("Temp. (antes)", tempSnap),
+            new KeyValuePair<string, string>("Clock (antes)", clockSnap),
+            new KeyValuePair<string, string>("Consumo (antes)", powerSnap),
+        };
+
         var bench = _gpuBench;
         var timer = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Normal, (_, _) =>
         {
@@ -1361,9 +1382,9 @@ public partial class MainWindow : Window
         GbResult.ItemsSource = new[]
         {
             new KeyValuePair<string, string>("Nota", $"{r.Score:N0} pts"),
-            new KeyValuePair<string, string>("FPS médio", $"{r.AvgFps:0.0}"),
+            new KeyValuePair<string, string>("FPS medio", $"{r.AvgFps:0.0}"),
             new KeyValuePair<string, string>("1% low", $"{r.Low1Fps:0.0}"),
-            new KeyValuePair<string, string>("Resolução", $"{r.Width}x{r.Height}"),
+            new KeyValuePair<string, string>("Resolucao", $"{r.Width}x{r.Height}"),
             new KeyValuePair<string, string>("Frames", $"{r.Frames:N0}"),
         };
         SaveBenchRecord("gpu", r.Score, $"{r.Score:N0} pts · {r.AvgFps:0} FPS · {r.Height}p");

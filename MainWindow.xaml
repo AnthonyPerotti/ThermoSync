@@ -96,6 +96,26 @@
             </Grid>
         </DataTemplate>
 
+        <!-- History entry: date, score bar, and detailed summary on its own row -->
+        <DataTemplate x:Key="BenchHistory">
+            <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="0,8,0,10" Margin="0,0,0,2">
+                <StackPanel>
+                    <Grid>
+                        <TextBlock Text="{Binding Label}" FontSize="12" Foreground="{DynamicResource Muted}"/>
+                        <TextBlock Text="{Binding Score}" FontFamily="{StaticResource Mono}" FontWeight="SemiBold" FontSize="14" HorizontalAlignment="Right"/>
+                    </Grid>
+                    <Grid Height="3" Margin="0,5,0,4" Background="{DynamicResource Line}">
+                        <Border Background="{DynamicResource Fg}" RenderTransformOrigin="0,0.5">
+                            <Border.RenderTransform>
+                                <ScaleTransform ScaleX="{Binding Fraction}"/>
+                            </Border.RenderTransform>
+                        </Border>
+                    </Grid>
+                    <TextBlock Text="{Binding Detail}" FontSize="11" Foreground="{DynamicResource Faint}" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
         <Style x:Key="MonoCell" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource Mono}"/>
         </Style>
@@ -2041,7 +2061,7 @@
                                     <StackPanel>
                                         <TextBlock Text="HISTÓRICO" Style="{StaticResource Label}"/>
                                         <TextBlock x:Name="BenchHistoryEmpty" Text="Nenhum resultado ainda." Foreground="{DynamicResource Faint}"/>
-                                        <ItemsControl x:Name="BenchHistory" ItemTemplate="{StaticResource Meter}"/>
+                                        <ItemsControl x:Name="BenchHistory" ItemTemplate="{StaticResource BenchHistory}"/>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
@@ -2106,10 +2126,25 @@
                                         <ItemsControl x:Name="GbResult" ItemTemplate="{StaticResource KeyValueRow}"/>
                                     </StackPanel>
                                 </Border>
+                                <Border Style="{StaticResource CardBorder}" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="DURANTE O TESTE" Style="{StaticResource Label}"/>
+                                        <ItemsControl x:Name="GbLive">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,3">
+                                                        <TextBlock Text="{Binding Key}" Foreground="{DynamicResource Muted}"/>
+                                                        <TextBlock Text="{Binding Value}" FontFamily="{StaticResource Mono}" HorizontalAlignment="Right"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
                                 <Border Style="{StaticResource CardBorder}">
                                     <StackPanel>
                                         <TextBlock Text="HISTÓRICO" Style="{StaticResource Label}"/>
-                                        <ItemsControl x:Name="GbHistory" ItemTemplate="{StaticResource Meter}"/>
+                                        <ItemsControl x:Name="GbHistory" ItemTemplate="{StaticResource BenchHistory}"/>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
@@ -2209,7 +2244,7 @@
                                 <Border Style="{StaticResource CardBorder}">
                                     <StackPanel>
                                         <TextBlock Text="HISTÓRICO" Style="{StaticResource Label}"/>
-                                        <ItemsControl x:Name="RtHistory" ItemTemplate="{StaticResource Meter}"/>
+                                        <ItemsControl x:Name="RtHistory" ItemTemplate="{StaticResource BenchHistory}"/>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
@@ -2269,7 +2304,7 @@
                                 <Border Style="{StaticResource CardBorder}">
                                     <StackPanel>
                                         <TextBlock Text="HISTÓRICO" Style="{StaticResource Label}"/>
-                                        <ItemsControl x:Name="SimHistory" ItemTemplate="{StaticResource Meter}"/>
+                                        <ItemsControl x:Name="SimHistory" ItemTemplate="{StaticResource BenchHistory}"/>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
@@ -2324,7 +2359,7 @@
                                 <Border Style="{StaticResource CardBorder}">
                                     <StackPanel>
                                         <TextBlock Text="HISTÓRICO" Style="{StaticResource Label}"/>
-                                        <ItemsControl x:Name="MemHistory" ItemTemplate="{StaticResource Meter}"/>
+                                        <ItemsControl x:Name="MemHistory" ItemTemplate="{StaticResource BenchHistory}"/>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
@@ -2386,7 +2421,7 @@
                                 <Border Style="{StaticResource CardBorder}">
                                     <StackPanel>
                                         <TextBlock Text="HISTÓRICO" Style="{StaticResource Label}"/>
-                                        <ItemsControl x:Name="DiskHistory" ItemTemplate="{StaticResource Meter}"/>
+                                        <ItemsControl x:Name="DiskHistory" ItemTemplate="{StaticResource BenchHistory}"/>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>

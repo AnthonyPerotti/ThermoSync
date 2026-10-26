@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Vortice.D3DCompiler;
@@ -233,9 +233,11 @@ float4 TreeShadowVS(VSIn i) : SV_POSITION { float3x3 r; return mul(float4(TreeWo
 float3 Sky(float3 dir)
 {
     float up = saturate(dir.y);
-    float3 col = lerp(float3(0.42, 0.42, 0.42), float3(0.12, 0.12, 0.12), pow(up, 0.6));
+    float3 horizon = float3(0.55, 0.52, 0.50);
+    float3 zenith  = float3(0.18, 0.30, 0.58);
+    float3 col = lerp(horizon, zenith, pow(up, 0.6));
     float sun = saturate(dot(dir, -SunDir));
-    col += pow(sun, 600) * 12 + pow(sun, 12) * 0.25;
+    col += pow(sun, 600) * float3(12, 10, 6) + pow(sun, 12) * float3(0.30, 0.25, 0.15);
     return col;
 }
 
@@ -251,12 +253,15 @@ float Shadow(float3 wpos, float3 n)
     return sum / 25;
 }
 
-float3 Shade(float3 wpos, float3 n, float albedo)
+float3 Shade(float3 wpos, float3 n, float3 albedo)
 {
     float3 l = -SunDir;
     float ndl = saturate(dot(n, l));
-    float3 direct = ndl * Shadow(wpos, n) * 1.5;
-    float3 ambient = lerp(0.06, 0.16, n.y * 0.5 + 0.5);
+    float3 sunCol  = float3(1.45, 1.35, 1.15);
+    float3 direct  = ndl * Shadow(wpos, n) * sunCol;
+    float3 skyAmb  = float3(0.06, 0.08, 0.14);
+    float3 gndAmb  = float3(0.05, 0.04, 0.03);
+    float3 ambient = lerp(gndAmb, skyAmb, n.y * 0.5 + 0.5);
     float3 col = albedo * (direct + ambient);
     float dist = length(wpos - CamPos);
     float fog = 1 - exp(-dist * 0.0022);
@@ -268,16 +273,21 @@ float4 TerrainPS(PSIn i) : SV_TARGET
     float3 n = normalize(i.nrm);
     float slope = 1 - n.y;
     float h = i.wpos.y;
-    float albedo = lerp(0.22, 0.15, saturate((h - 8) / 25));               // grama
-    albedo = lerp(albedo, 0.28, saturate((slope - 0.25) * 4));             // rocha nas encostas
-    albedo = lerp(albedo, 0.70, saturate((h - 62) / 10) * saturate(1 - slope * 3)); // neve só nos picos
-    albedo *= 0.9 + 0.1 * frac(sin(dot(floor(i.wpos.xz * 2), float2(12.9898, 78.233))) * 43758.5453);
+    float3 grass = lerp(float3(0.10, 0.20, 0.04), float3(0.06, 0.12, 0.03), saturate((h - 8) / 25));
+    float3 rock  = float3(0.22, 0.18, 0.14);
+    float3 snow  = float3(0.72, 0.73, 0.78);
+    float3 albedo = lerp(grass, rock, saturate((slope - 0.25) * 4));
+    albedo = lerp(albedo, snow, saturate((h - 62) / 10) * saturate(1 - slope * 3));
+    float noise = 0.9 + 0.1 * frac(sin(dot(floor(i.wpos.xz * 2), float2(12.9898, 78.233))) * 43758.5453);
+    albedo *= noise;
     return float4(Shade(i.wpos, n, albedo), 1);
 }
 
 float4 TreePS(PSIn i) : SV_TARGET
 {
-    float albedo = i.mat < 1.5 ? 0.08 : 0.11;
+    float3 trunk  = float3(0.12, 0.07, 0.03);
+    float3 leaves = float3(0.04, 0.10, 0.02);
+    float3 albedo = i.mat < 1.5 ? trunk : leaves;
     return float4(Shade(i.wpos, normalize(i.nrm), albedo), 1);
 }
 
@@ -302,7 +312,8 @@ float4 WaterPS(PSIn i) : SV_TARGET
     float3 v = normalize(i.wpos - CamPos);
     float fres = 0.04 + 0.96 * pow(1 - saturate(dot(-v, n)), 5);
     float3 refl = Sky(reflect(v, n)) * Shadow(i.wpos, n);
-    float3 col = lerp(float3(0.05, 0.05, 0.05), refl, fres);
+    float3 deep = float3(0.01, 0.04, 0.08);
+    float3 col = lerp(deep, refl, fres);
     float fog = 1 - exp(-length(i.wpos - CamPos) * 0.0022);
     return float4(lerp(col, Sky(v), fog), 1);
 }
@@ -327,8 +338,8 @@ float4 PostPS(FsOut i) : SV_TARGET
     c = c * (2.51 * c + 0.03) / (c * (2.43 * c + 0.59) + 0.14);         // ACES
     float2 d = i.uv - 0.5;
     c *= 1 - dot(d, d) * 0.9;                                           // vinheta
-    float g = pow(saturate(c.r), 1 / 2.2);
-    return float4(g, g, g, 1);
+    c = pow(saturate(c), 1.0 / 2.2);                                    // gamma per-channel
+    return float4(c, 1);
 }";
 
     // ------------------------------------------------------------------ execução
