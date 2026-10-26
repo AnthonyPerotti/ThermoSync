@@ -1,6 +1,6 @@
 # Registro de Mudancas - ThermoSync
 
-## Versao 1.5.0
+## Versao 1.5.1
 
 ### Visao Geral com Multiplos Discos
 - Corrigida a tabela de componentes da Visao Geral que exibia apenas a particao C. O ThermoSync agora lista todas as unidades e discos instalados no sistema (C:, D:, etc.) com capacidade, espaco livre e status.

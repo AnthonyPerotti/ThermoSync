@@ -10,7 +10,7 @@ O software divide suas funcoes em modulos especializados:
 - **Sensores em Tempo Real (`Services/SensorMonitor.cs`):** Integracao com LibreHardwareMonitorLib para medicao de frequencia, temperatura, consumo eletrico, tensao e carga de processadores, unidades graficas, controladores de memoria e ventiladores.
 - **Identificacao de Sistema (`Hardware/SystemInfoCollector.cs`):** Coleta de topologia de hardware via Windows Management Instrumentation (WMI), detalhando modulos de memoria RAM (SPD, fabricante, frequencia configurada e part number) e placa-mae.
 - **Especificacoes Avancadas de GPU (`Hardware/GpuInfoCollector.cs`, `Hardware/GpuSpecDb.cs`, `Hardware/Nvml.cs`):** Leitura de limites de potencia, clocks nominais, estados de energia (P-states), limitadores de desempenho (PerfCap), contadores NVENC/NVDEC e barramento PCIe via NVIDIA Management Library (NVML) e DXGI.
-- **Armazenamento e S.M.A.R.T. (`Hardware/DiskHealth.cs`, `Models/DriveMap.cs`):** Leitura de contadores de confiabilidade de disco (MSFT_StorageReliabilityCounter), desgaste percentual de SSDs, setores realocados e correlacao entre unidades logicas e discos fisicos.
+- **Armazenamento e S.M.A.R.T. (`Hardware/DiskHealth.cs`, `Models/DriveMap.cs`):** Leitura de contadores de confiabilidade de disco (MSFT_StorageReliabilityCounter), desgaste percentual de SSDs, setores realocados, correlacao entre unidades logicas e discos fisicos e exibicao detalhada de multiplos discos no painel de Visao Geral.
 - **Historico Continuo em CSV (`Services/TelemetryLogger.cs`):** Gravacao assincrona em segundo plano da telemetria em arquivos CSV rotativos diarios em `%AppData%\ThermoSync\telemetry\`. Retencao automatica dos ultimos 7 dias.
 
 ### 2. Controle Ativo de Ventoinhas (SYNC FAN)
@@ -19,11 +19,12 @@ O software divide suas funcoes em modulos especializados:
 - **Perfis Vinculados a Jogos (Per-Game Profiles):** Aplicacao automatica de curva de refrigeracao especifica ao iniciar cada jogo no launcher e restauracao automatica do perfil padrao ao encerrar a partida.
 
 ### 3. Mecanismos de Benchmark (SYNC BENCH)
-- **Renderizador de CPU (`Benchmarks/BenchRenderer.cs`):** Path tracer monocromatico multithreaded com amostragem deterministica (1024 amostras/pixel), reflexao e refracao. Executa em modos single-thread ou multi-thread com balanceamento de carga do centro para a borda.
-- **Cena Grafica 3D (`Benchmarks/GpuGameBench.cs`):** Renderizacao em tempo real via Direct3D 11 com instanciamento massivo de geometria, mapas de sombra em alta resolucao e mapeamento de tons HDR.
+- **Renderizador de CPU (`Benchmarks/BenchRenderer.cs`):** Path tracer multithreaded com amostragem deterministica (1024 amostras/pixel), reflexao e refracao. Executa em modos single-thread ou multi-thread com balanceamento de carga do centro para a borda.
+- **Cena Grafica 3D (`Benchmarks/GpuGameBench.cs`):** Renderizacao em tempo real via Direct3D 11 com instanciamento massivo de geometria, mapas de sombra em alta resolucao, iluminacao solar de alto contraste, leito de rio com agua procedural e mapeamento de tons HDR.
 - **Ray Tracing DXR 1.1 (`Benchmarks/GpuRtBench.cs`):** Carga computacional em Direct3D 12 utilizando raios inline em compute shaders diretamente nas unidades aceleradoras de hardware (RT Cores).
 - **Simulacao de Fisica (`Benchmarks/GameSimBench.cs`):** Simulacao concorrente com mais de 30.000 entidades ativas para teste de escalabilidade e sincronizacao de threads de processador.
 - **I/O e Memoria (`Benchmarks/DiskBench.cs`, `Benchmarks/MemoryBench.cs`):** Testes de leitura e escrita sequencial e aleatoria 4K sem cache de arquivo do Windows (`FILE_FLAG_NO_BUFFERING`), alem de medicao de largura de banda e latencia de memoria principal.
+- **Painel Durante o Teste (Telemetria Ativa):** Monitoramento em tempo real do componente sob estresse durante a execucao do benchmark (GPU, CPU, memoria RAM e disco selecionado).
 
 ### 4. Telemetria em Jogos e Overlay
 - **Captura ETW (`Hardware/FrameMonitor.cs`):** Coleta de tempos de apresentacao de quadros (frametime) via provedores do Event Tracing for Windows (DXGI e D3D9), eliminando a necessidade de injecao de bibliotecas dinamicas (DLL injection) em espaco de usuario do processo-alvo.
