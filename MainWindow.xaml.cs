@@ -285,40 +285,100 @@ public partial class MainWindow : Window
         if (winget == null)
         {
             var choice = MessageBox.Show(why + "\n\nO instalador de pacotes do Windows (winget) não foi encontrado neste PC.\n\n" +
-                            "Deseja abrir a página oficial de releases do PawnIO no GitHub para baixar o instalador diretamente?\n\n" +
-                            "[Sim] Abrir GitHub oficial do PawnIO\n[Não] Tentar abrir a Microsoft Store",
-                            "THERMOSYNC", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+                            "Deseja baixar e instalar o driver PawnIO oficial diretamente do GitHub agora?",
+                            "THERMOSYNC", MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (choice == MessageBoxResult.Yes)
             {
-                try { Process.Start(new ProcessStartInfo("https://github.com/namazso/PawnIO/releases") { UseShellExecute = true }); } catch { }
-            }
-            else if (choice == MessageBoxResult.No)
-            {
-                try { Process.Start(new ProcessStartInfo("ms-windows-store://pdp/?ProductId=9NBLGGH4NNS1") { UseShellExecute = true }); } catch { }
+                RunPawnIOGitHubInstaller();
             }
             return;
         }
 
-        var r = MessageBox.Show(why + "\n\nInstalar o PawnIO agora via winget?\n" +
-                                "Quando terminar, feche o THERMOSYNC e abra de novo.",
+        var r = MessageBox.Show(why + "\n\nInstalar o PawnIO agora?\n" +
+                                "O instalador tentará via winget e, se houver falha de fontes no Windows, fará o download direto do GitHub oficial.",
                                 "THERMOSYNC", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (r != MessageBoxResult.Yes) return;
 
-        // Invocamos com caminho absoluto via PowerShell para garantir execução em ambiente elevado
-        var psCmd = $"& '{winget}' install --id namazso.PawnIO -e --accept-package-agreements --accept-source-agreements; " +
-                    "Write-Host ''; Write-Host 'Pronto! Feche esta janela e reabra o THERMOSYNC.' -ForegroundColor Green";
+        // Script com auto-recuperação de fontes (source reset) e fallback automático para download direto do GitHub
+        var psScript = $@"
+$winget = '{winget}'
+Write-Host 'Instalando driver PawnIO para telemetria de CPU...' -ForegroundColor Cyan
+
+# 1. Tentativa padrao via winget
+& $winget install --id namazso.PawnIO -e --accept-package-agreements --accept-source-agreements
+$ok = ($LASTEXITCODE -eq 0)
+
+# 2. Se o winget falhar (ex.: erro de fontes corrompidas), executa source reset e tenta de novo
+if (-not $ok) {{
+    Write-Host ''
+    Write-Host 'WinGet reportou falha (possivel erro de fontes corrompidas). Executando source reset...' -ForegroundColor Yellow
+    & $winget source reset --force
+    & $winget source update
+    Write-Host 'Tentando instalar novamente via WinGet...' -ForegroundColor Cyan
+    & $winget install --id namazso.PawnIO -e --accept-package-agreements --accept-source-agreements
+    $ok = ($LASTEXITCODE -eq 0)
+}}
+
+# 3. Se ainda assim o winget falhar, baixa diretamente da release oficial do GitHub
+if (-not $ok) {{
+    Write-Host ''
+    Write-Host 'WinGet com erro de fontes ou indisponivel no sistema.' -ForegroundColor Yellow
+    Write-Host 'Baixando instalador oficial do PawnIO diretamente do GitHub...' -ForegroundColor Cyan
+    $url = 'https://github.com/namazso/PawnIO.Setup/releases/latest/download/PawnIO_setup.exe'
+    $dest = [System.IO.Path]::Combine($env:TEMP, 'PawnIO_setup.exe')
+    try {{
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12 -bor [System.Net.SecurityProtocolType]::Tls13
+        Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
+        Write-Host 'Download concluido com sucesso! Iniciando instalador...' -ForegroundColor Green
+        Start-Process -FilePath $dest -Wait
+        $ok = $true
+    }} catch {{
+        Write-Host ('Erro ao baixar do GitHub: ' + $_.Exception.Message) -ForegroundColor Red
+        Write-Host 'Abrindo pagina de download oficial no navegador...' -ForegroundColor Yellow
+        Start-Process 'https://github.com/namazso/PawnIO.Setup/releases/latest'
+    }}
+}}
+
+Write-Host ''
+if ($ok) {{
+    Write-Host 'Pronto! Feche esta janela e reabra o THERMOSYNC.' -ForegroundColor Green
+}} else {{
+    Write-Host 'Conclua a instalacao do PawnIO e reabra o THERMOSYNC.' -ForegroundColor Yellow
+}}
+";
+        var b64 = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(psScript));
         try
         {
-            Process.Start(new ProcessStartInfo("powershell.exe", $"-NoExit -ExecutionPolicy Bypass -Command \"{psCmd}\"")
+            Process.Start(new ProcessStartInfo("powershell.exe", $"-NoExit -ExecutionPolicy Bypass -EncodedCommand {b64}")
             { UseShellExecute = true });
         }
         catch
         {
-            // Fallback para CMD com o caminho completo do executável
-            Process.Start(new ProcessStartInfo("cmd.exe",
-                $"/k \"\"{winget}\" install --id namazso.PawnIO -e --accept-package-agreements --accept-source-agreements && echo. && echo Pronto! Feche esta janela e reabra o THERMOSYNC.\"")
-            { UseShellExecute = true });
+            RunPawnIOGitHubInstaller();
         }
+    }
+
+    private static void RunPawnIOGitHubInstaller()
+    {
+        var psScript = @"
+Write-Host 'Baixando driver PawnIO oficial do GitHub...' -ForegroundColor Cyan
+$url = 'https://github.com/namazso/PawnIO.Setup/releases/latest/download/PawnIO_setup.exe'
+$dest = [System.IO.Path]::Combine($env:TEMP, 'PawnIO_setup.exe')
+try {
+    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12 -bor [System.Net.SecurityProtocolType]::Tls13
+    Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
+    Write-Host 'Download concluido! Iniciando instalador...' -ForegroundColor Green
+    Start-Process -FilePath $dest -Wait
+    Write-Host ''
+    Write-Host 'Pronto! Feche esta janela e reabra o THERMOSYNC.' -ForegroundColor Green
+} catch {
+    Write-Host ('Erro: ' + $_.Exception.Message) -ForegroundColor Red
+    Start-Process 'https://github.com/namazso/PawnIO.Setup/releases/latest'
+}
+";
+        var b64 = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(psScript));
+        Process.Start(new ProcessStartInfo("powershell.exe", $"-NoExit -ExecutionPolicy Bypass -EncodedCommand {b64}")
+        { UseShellExecute = true });
     }
 
     // ---------------- Janela / navegação ----------------

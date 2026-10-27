@@ -1,5 +1,15 @@
 # Registro de Mudancas - ThermoSync
 
+## Versao 1.5.2
+
+### Instalador do Driver PawnIO com Auto-Recuperacao
+- Corrigida a falha de instalacao em sistemas Windows onde as fontes do WinGet estao corrompidas ("Falha ao abrir a origem(s); tente o comando 'source reset' se o problema persistir").
+- Implementada estrategia de auto-recuperacao em tres camadas no instalador do PawnIO:
+  1. Tentativa padrao de instalacao via WinGet.
+  2. Execucao automatica de `winget source reset --force` e atualizacao de fontes caso a primeira tentativa falhe, com nova tentativa de instalacao.
+  3. Fallback automatico para download direto do binario oficial `PawnIO_setup.exe` a partir das releases do GitHub para a pasta temporaria (`%TEMP%`) e execucao assistida.
+- Adicionada rotina de download direto do GitHub quando o utilitario WinGet nao estiver disponivel no sistema operacional.
+
 ## Versao 1.5.1
 
 ### Visao Geral com Multiplos Discos
