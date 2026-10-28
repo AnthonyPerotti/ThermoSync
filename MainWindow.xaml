@@ -1973,8 +1973,19 @@
                         </Grid.ColumnDefinitions>
 
                         <!-- Render -->
-                        <Border Style="{StaticResource CardBorder}" Padding="14" VerticalAlignment="Top">
-                            <StackPanel>
+                        <Border Style="{StaticResource CardBorder}" Padding="14" VerticalAlignment="Stretch" MaxWidth="960">
+                            <DockPanel>
+                                <Grid DockPanel.Dock="Bottom" Height="3" Margin="0,12,0,0" Background="{DynamicResource Line}">
+                                    <Border Background="{DynamicResource Fg}" RenderTransformOrigin="0,0.5">
+                                        <Border.RenderTransform>
+                                            <ScaleTransform x:Name="BenchProgress" ScaleX="0"/>
+                                        </Border.RenderTransform>
+                                    </Border>
+                                </Grid>
+                                <Grid DockPanel.Dock="Bottom" Margin="0,8,0,0">
+                                    <TextBlock x:Name="BenchStatus" Text="Pronto" Foreground="{DynamicResource Muted}"/>
+                                    <TextBlock x:Name="BenchElapsed" FontFamily="{StaticResource Mono}" Foreground="{DynamicResource Muted}" HorizontalAlignment="Right"/>
+                                </Grid>
                                 <Border Background="#050505">
                                     <Viewbox Stretch="Uniform">
                                         <Grid Width="960" Height="540">
@@ -1985,18 +1996,7 @@
                                         </Grid>
                                     </Viewbox>
                                 </Border>
-                                <Grid Height="3" Margin="0,12,0,8" Background="{DynamicResource Line}">
-                                    <Border Background="{DynamicResource Fg}" RenderTransformOrigin="0,0.5">
-                                        <Border.RenderTransform>
-                                            <ScaleTransform x:Name="BenchProgress" ScaleX="0"/>
-                                        </Border.RenderTransform>
-                                    </Border>
-                                </Grid>
-                                <Grid>
-                                    <TextBlock x:Name="BenchStatus" Text="Pronto" Foreground="{DynamicResource Muted}"/>
-                                    <TextBlock x:Name="BenchElapsed" FontFamily="{StaticResource Mono}" Foreground="{DynamicResource Muted}" HorizontalAlignment="Right"/>
-                                </Grid>
-                            </StackPanel>
+                            </DockPanel>
                         </Border>
 
                         <!-- Painel lateral -->

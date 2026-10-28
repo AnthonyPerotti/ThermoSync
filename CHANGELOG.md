@@ -1,5 +1,9 @@
 # Registro de Mudancas - ThermoSync
 
+## Versao 1.5.4
+
+- Corrigido layout do painel de benchmark Render (CPU) em monitores ultrawide: a area de render agora tem largura maxima limitada e o painel lateral mantem scroll correto sem cortar conteudo.
+
 ## Versao 1.5.3
 
 - Bump de versao para release de atualizacao automatica.
