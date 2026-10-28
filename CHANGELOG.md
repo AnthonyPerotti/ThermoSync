@@ -1,5 +1,11 @@
 # Registro de Mudancas - ThermoSync
 
+## Versao 1.5.5
+
+- Corrigido comportamento de inicializacao: a janela nao minimiza mais sozinha apos o carregamento dos sensores.
+- A inicializacao minimizada na bandeja agora so ocorre quando acionada com o parametro `--minimized` (ex.: no boot com o Windows), iniciando diretamente oculta sem piscar na tela.
+- Abertura interativa manual (duplo clique / atalho) mantem a janela aberta continuamente.
+
 ## Versao 1.5.4
 
 - Corrigido layout do painel de benchmark Render (CPU) em monitores ultrawide: a area de render agora tem largura maxima limitada e o painel lateral mantem scroll correto sem cortar conteudo.

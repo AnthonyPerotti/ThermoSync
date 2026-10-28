@@ -88,9 +88,19 @@ public partial class MainWindow : Window
     private Brush Muted => (Brush)FindResource("Muted");
     private Brush Card => (Brush)FindResource("Card");
 
-    public MainWindow()
+    public MainWindow() : this(false) { }
+
+    public MainWindow(bool startMinimized)
     {
         InitializeComponent();
+
+        if (startMinimized)
+        {
+            WindowState = WindowState.Minimized;
+            Visibility = Visibility.Hidden;
+            ShowInTaskbar = false;
+        }
+
         ThemeManager.Apply(_settings.LightTheme);
         UpdateThemeButton();
         ShowPage("PageDash");
@@ -114,24 +124,9 @@ public partial class MainWindow : Window
         _fans = new FanControlService(_monitor);
         _telemetryLogger = new TelemetryLogger { IsEnabled = _settings.TelemetryLogEnabled };
 
-        Loaded += async (_, _) =>
+        Loaded += (_, _) =>
         {
-            InitTray();
-            await LoadHardwareAsync();
-            _homelab.ApplySettings(_settings);
-            _fans.DiscoverFans(_monitor.Computer);
-            _fans.ApplyProfile(_settings.FanMode, _settings.FanManualPct);
-
-            if (_settings.AutoCheckUpdates)
-            {
-                _ = CheckUpdateSilentAsync();
-            }
-
-            if (_settings.StartMinimized || Environment.GetCommandLineArgs().Any(a => a.Equals("--minimized", StringComparison.OrdinalIgnoreCase)))
-            {
-                WindowState = WindowState.Minimized;
-                Hide();
-            }
+            _ = InitializeAppAsync();
         };
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -172,6 +167,11 @@ public partial class MainWindow : Window
             if (WindowState == WindowState.Minimized && _settings.MinimizeToTray)
             {
                 Hide();
+            }
+            else if (WindowState != WindowState.Minimized)
+            {
+                ShowInTaskbar = true;
+                Visibility = Visibility.Visible;
             }
         };
 
@@ -434,17 +434,47 @@ try {
             p.Visibility = p.Name == name ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    public void RestoreFromTray(string? page = null)
+    {
+        if (!string.IsNullOrEmpty(page)) ShowPage(page);
+        ShowInTaskbar = true;
+        Visibility = Visibility.Visible;
+        Show();
+        WindowState = WindowState.Normal;
+        Activate();
+    }
+
+    private bool _appInitialized;
+    private async Task InitializeAppAsync()
+    {
+        if (_appInitialized) return;
+        _appInitialized = true;
+
+        InitTray();
+        await LoadHardwareAsync();
+        _homelab.ApplySettings(_settings);
+        _fans.DiscoverFans(_monitor.Computer);
+        _fans.ApplyProfile(_settings.FanMode, _settings.FanManualPct);
+
+        if (_settings.AutoCheckUpdates)
+        {
+            _ = CheckUpdateSilentAsync();
+        }
+    }
+
     private void InitTray()
     {
+        if (_tray != null) return;
+
         var menu = new ContextMenu();
         var miOpen = new MenuItem { Header = "Abrir THERMOSYNC", FontWeight = FontWeights.Bold };
-        miOpen.Click += (_, _) => { Show(); WindowState = WindowState.Normal; Activate(); };
+        miOpen.Click += (_, _) => RestoreFromTray();
 
         var miStatus = new MenuItem { Header = "Homelab Prometheus (Porta 9182)" };
-        miStatus.Click += (_, _) => { Show(); ShowPage("PageInteg"); WindowState = WindowState.Normal; Activate(); };
+        miStatus.Click += (_, _) => RestoreFromTray("PageInteg");
 
         var miFans = new MenuItem { Header = "Ventoinhas: Perfis e Curvas" };
-        miFans.Click += (_, _) => { Show(); ShowPage("PageFans"); WindowState = WindowState.Normal; Activate(); };
+        miFans.Click += (_, _) => RestoreFromTray("PageFans");
 
         var miExit = new MenuItem { Header = "Sair do ThermoSync" };
         miExit.Click += (_, _) => { _reallyClose = true; Close(); };
@@ -457,12 +487,7 @@ try {
         menu.Items.Add(miExit);
 
         _tray = new TrayManager(this);
-        _tray.OnOpenRequested += () => Dispatcher.BeginInvoke(new Action(() =>
-        {
-            Show();
-            WindowState = WindowState.Normal;
-            Activate();
-        }));
+        _tray.OnOpenRequested += () => Dispatcher.BeginInvoke((Action)(() => RestoreFromTray()));
         _tray.Initialize(menu);
     }
 
@@ -1697,6 +1722,8 @@ try {
         System.Windows.Interop.HwndSource.FromHwnd(hwnd)?.AddHook(HotkeyHook);
         // Ctrl + Shift + O, sem repetição ao segurar
         RegisterHotKey(hwnd, HotkeyId, 0x0002 | 0x0004 | 0x4000, 0x4F);
+
+        _ = InitializeAppAsync();
     }
 
     private IntPtr HotkeyHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)

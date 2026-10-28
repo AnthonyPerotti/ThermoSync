@@ -40,7 +40,8 @@ public partial class App : Application
             IntPtr h = FindWindow(null, "THERMOSYNC");
             if (h != IntPtr.Zero)
             {
-                if (IsIconic(h)) ShowWindow(h, 9); // SW_RESTORE
+                ShowWindow(h, 9); // SW_RESTORE
+                ShowWindow(h, 5); // SW_SHOW
                 SetForegroundWindow(h);
                 Shutdown();
                 return;
@@ -48,6 +49,15 @@ public partial class App : Application
             // Se a janela não existe (ex: processo anterior travado em segundo plano), prossegue normalmente
         }
         base.OnStartup(e);
-        new MainWindow().Show();
+        bool startMinimized = e.Args.Any(a => a.Equals("--minimized", StringComparison.OrdinalIgnoreCase));
+        var win = new MainWindow(startMinimized);
+        if (startMinimized)
+        {
+            new System.Windows.Interop.WindowInteropHelper(win).EnsureHandle();
+        }
+        else
+        {
+            win.Show();
+        }
     }
 }
