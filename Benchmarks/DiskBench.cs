@@ -1,8 +1,15 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 
 namespace ThermoSync;
+
+public enum DiskBenchMode
+{
+    Full,
+    SequentialOnly,
+    Random4KOnly
+}
 
 public sealed record DiskBenchResult(string Drive, long FileMb, double SeqReadMBs, double SeqWriteMBs,
                                      double ReadIopsQ1, double WriteIopsQ1, double ReadLatencyUs, double WriteLatencyUs,
@@ -43,6 +50,9 @@ public static class DiskBench
     }
 
     public static unsafe DiskBenchResult Run(string driveRoot, long fileMb, Action<string, double> progress, CancellationToken ct)
+        => Run(driveRoot, fileMb, DiskBenchMode.Full, progress, ct);
+
+    public static unsafe DiskBenchResult Run(string driveRoot, long fileMb, DiskBenchMode mode, Action<string, double> progress, CancellationToken ct)
     {
         long fileBytes = fileMb << 20;
         var di = new DriveInfo(driveRoot);
@@ -62,38 +72,65 @@ public static class DiskBench
             using var h = File.OpenHandle(path, FileMode.Create, FileAccess.ReadWrite, FileShare.None,
                                           FileOptions.WriteThrough | (FileOptions)FILE_FLAG_NO_BUFFERING, fileBytes);
 
-            // ---------- Sequencial: escrita ----------
-            var sw = Stopwatch.StartNew();
-            for (long off = 0; off < fileBytes; off += Block)
+            double seqWrite = 0;
+            double seqRead = 0;
+
+            if (mode == DiskBenchMode.Full || mode == DiskBenchMode.SequentialOnly)
             {
-                ct.ThrowIfCancellationRequested();
-                RandomAccess.Write(h, seq, off);
-                progress("Escrita sequencial (1 MB)", 0.00 + 0.25 * off / fileBytes);
-            }
-            double seqWrite = fileMb / sw.Elapsed.TotalSeconds;
+                // ---------- Sequencial: escrita ----------
+                double spanWrite = mode == DiskBenchMode.Full ? 0.25 : 0.50;
+                var sw = Stopwatch.StartNew();
+                for (long off = 0; off < fileBytes; off += Block)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    RandomAccess.Write(h, seq, off);
+                    progress("Escrita sequencial (1 MB)", spanWrite * off / fileBytes);
+                }
+                seqWrite = fileMb / sw.Elapsed.TotalSeconds;
 
-            // ---------- Sequencial: leitura ----------
-            sw.Restart();
-            for (long off = 0; off < fileBytes; off += Block)
+                // ---------- Sequencial: leitura ----------
+                double baseRead = mode == DiskBenchMode.Full ? 0.25 : 0.50;
+                double spanRead = mode == DiskBenchMode.Full ? 0.25 : 0.50;
+                sw.Restart();
+                for (long off = 0; off < fileBytes; off += Block)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    RandomAccess.Read(h, seq, off);
+                    progress("Leitura sequencial (1 MB)", baseRead + spanRead * off / fileBytes);
+                }
+                seqRead = fileMb / sw.Elapsed.TotalSeconds;
+            }
+            else
             {
-                ct.ThrowIfCancellationRequested();
-                RandomAccess.Read(h, seq, off);
-                progress("Leitura sequencial (1 MB)", 0.25 + 0.25 * off / fileBytes);
+                for (long off = 0; off < fileBytes; off += Block)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    RandomAccess.Write(h, seq, off);
+                }
             }
-            double seqRead = fileMb / sw.Elapsed.TotalSeconds;
 
-            long slots = fileBytes / Small;
+            double readIops = 0, writeIops = 0, readLat = 0, writeLat = 0, q8 = 0;
 
-            // ---------- 4 KB aleatório, 1 requisição por vez: leitura ----------
-            var small = new Span<byte>(seqMem, Small);
-            double readIops = RandomLoop(h, small, slots, write: false, progress, "Leitura 4 KB aleatória (1 por vez)", 0.50, 0.15, ct, out double readLat);
+            if (mode == DiskBenchMode.Full || mode == DiskBenchMode.Random4KOnly)
+            {
+                long slots = fileBytes / Small;
+                var small = new Span<byte>(seqMem, Small);
 
-            // ---------- 4 KB aleatório, 1 requisição por vez: escrita ----------
-            double writeIops = RandomLoop(h, small, slots, write: true, progress, "Escrita 4 KB aleatória (1 por vez)", 0.65, 0.15, ct, out double writeLat);
+                // ---------- 4 KB aleatório, 1 requisição por vez: leitura ----------
+                double startQ1R = mode == DiskBenchMode.Full ? 0.50 : 0.00;
+                double spanQ1R = mode == DiskBenchMode.Full ? 0.15 : 0.35;
+                readIops = RandomLoop(h, small, slots, write: false, progress, "Leitura 4 KB aleatória (1 por vez)", startQ1R, spanQ1R, ct, out readLat);
 
-            // ---------- 4 KB aleatório, 8 requisições em paralelo: leitura ----------
-            progress("Leitura 4 KB aleatória (8 em paralelo)", 0.80);
-            double q8 = ParallelRead(h, slots, 8, ct, progress);
+                // ---------- 4 KB aleatório, 1 requisição por vez: escrita ----------
+                double startQ1W = mode == DiskBenchMode.Full ? 0.65 : 0.35;
+                double spanQ1W = mode == DiskBenchMode.Full ? 0.15 : 0.35;
+                writeIops = RandomLoop(h, small, slots, write: true, progress, "Escrita 4 KB aleatória (1 por vez)", startQ1W, spanQ1W, ct, out writeLat);
+
+                // ---------- 4 KB aleatório, 8 requisições em paralelo: leitura ----------
+                double startQ8 = mode == DiskBenchMode.Full ? 0.80 : 0.70;
+                progress("Leitura 4 KB aleatória (8 em paralelo)", startQ8);
+                q8 = ParallelRead(h, slots, 8, ct, progress);
+            }
 
             progress("Concluído", 1.0);
             return new DiskBenchResult(driveRoot.TrimEnd('\\'), fileMb, seqRead, seqWrite, readIops, writeIops, readLat, writeLat, q8);

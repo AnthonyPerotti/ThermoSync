@@ -2,6 +2,37 @@
 
 ## Versao 1.5.2
 
+### Deteccao e Registro de Throttling (Thermal e Power Limit)
+- Implementada deteccao ativa de estrangulamento termico (TjMax, Thermal Slowdown) e limitadores eletricos (Power Limit / Power Brake) via `Hardware/ThrottlingDetector.cs`.
+- Adicionados badges de status nos dashboards, nas abas de benchmark (Render, GPU, Simulacao) e no painel de Teste de Estresse (completando a grade 3x3 de monitoramento).
+- O teste de estabilidade (SYNC OC) agora audita continuamente se houve corte termico ou limitador de energia ativo durante o teste e grava o resultado no historico e no relatorio.
+
+### API Homelab Ampliada (JSON, Health e CORS)
+- Implementados novos endpoints HTTP internos em `Services/HomelabService.cs`:
+  - `GET /api/telemetry`: retorna snapshot consolidado em JSON contendo temperaturas, clocks, potencias, dados de throttling, uso de memoria e FPS de jogos ativos.
+  - `GET /api/health`: endpoint para checagem de integridade e uptime da aplicacao.
+- Adicionado suporte completo a CORS (`Access-Control-Allow-Origin: *`, metodos GET e OPTIONS) para consumo direto da telemetria a partir de dashboards web, Home Assistant e containers.
+
+### Perfis Sinteticos de Armazenamento (DiskBench)
+- Adicionado seletor de perfil de teste no SYNC BENCH (Disco):
+  - **Completo:** Leitura e escrita sequenciais (1 MB) + acessos aleatorios 4K (Q1 e Q8).
+  - **Apenas Sequencial:** Teste de taxa de transferencia bruta (MB/s).
+  - **Apenas 4K & Latencia:** Foco em IOPS e latencia media em microssegundos (us) para diagnostico de tempo de resposta em SSDs NVMe e SATA.
+
+### Curva Customizada de Ventoinhas (SYNC FAN)
+- Novo perfil de controle de ventiladores "Curva Customizada", mantendo intacto o modo "Manual (Fixo)".
+- Permite calibrar a resposta PWM em 4 estagios termicos (35 C, 55 C, 70 C e 85 C) com interpolacao linear continua.
+- Selecao do sensor de referencia termico para a curva: temperatura da CPU, da GPU ou a maior entre ambas (`max(CPU, GPU)`).
+
+### Relatorios em Markdown e HTML Aprimorado
+- Adicionado suporte nativo a exportacao de relatorios em formato Markdown (`.md`) para documentacao em repositorios e bancadas de teste.
+- Atualizacao visual dos relatorios gerados com tabelas estruturadas, omitindo numeros de serie e incluindo diagnosticos de throttling e estabilidade.
+
+### Teste de Estresse de VRAM Dedicado (Direct3D 11)
+- Implementada classe de teste de memoria de video `Benchmarks/GpuVramBench.cs` baseada em buffers Direct3D 11 em espaco de memoria GDDR.
+- Gravacao e validacao continua de padroes de tensao e alternancia de bits (0x55555555, 0xAAAAAAAA, walking bits e ruido pseudo-aleatorio) com contagem de erros de integridade.
+- Integrado como opcao de alvo de verificacao ("VRAM (GPU)") no SYNC OC.
+
 ### Instalador do Driver PawnIO com Auto-Recuperacao
 - Corrigida a falha de instalacao em sistemas Windows onde as fontes do WinGet estao corrompidas ("Falha ao abrir a origem(s); tente o comando 'source reset' se o problema persistir").
 - Implementada estrategia de auto-recuperacao em tres camadas no instalador do PawnIO:

@@ -76,11 +76,18 @@ public partial class MainWindow
         string root = CheckedTag(DiskDrivePanel) ?? "";
         if (root.Length == 0) { DiskStatus.Text = "Escolha uma unidade."; return; }
         long fileMb = long.Parse(CheckedTag(DiskSizePanel) ?? "1024");
+        string profileTag = CheckedTag(DiskProfilePanel) ?? "full";
+        var mode = profileTag switch
+        {
+            "seq" => DiskBenchMode.SequentialOnly,
+            "rnd" => DiskBenchMode.Random4KOnly,
+            _ => DiskBenchMode.Full
+        };
 
         _gameBenchCts = new CancellationTokenSource();
         var ct = _gameBenchCts.Token;
         SetGameBenchRunning(BtnDiskBench, true);
-        DiskDrivePanel.IsEnabled = DiskSizePanel.IsEnabled = false;
+        DiskDrivePanel.IsEnabled = DiskSizePanel.IsEnabled = DiskProfilePanel.IsEnabled = false;
         DiskResult.ItemsSource = null;
         UpdateDiskBenchLive();
         (string Phase, double Frac) progress = ("Preparando…", 0);
@@ -94,21 +101,31 @@ public partial class MainWindow
 
         try
         {
-            var r = await Task.Run(() => DiskBench.Run(root, fileMb, (phase, f) => progress = (phase, f), ct), ct);
+            var r = await Task.Run(() => DiskBench.Run(root, fileMb, mode, (phase, f) => progress = (phase, f), ct), ct);
             ct.ThrowIfCancellationRequested();
 
-            var rows = new List<MemRow>
+            var rows = new List<MemRow>();
+            if (mode != DiskBenchMode.Random4KOnly)
             {
-                new("Leitura sequencial", $"{r.SeqReadMBs:N0} MB/s", "Blocos de 1 MB. Mede copiar arquivos grandes e carregar jogos."),
-                new("Escrita sequencial", $"{r.SeqWriteMBs:N0} MB/s", "Blocos de 1 MB, direto no disco. SSDs com cache SLC caem depois de gravar dezenas de GB."),
-                new("Leitura 4 KB aleatória (1 por vez)", $"{r.ReadIopsQ1:N0} IOPS", $"Latência média de {r.ReadLatencyUs:0.0} µs. É o que define a sensação de rapidez do sistema e dos programas."),
-                new("Escrita 4 KB aleatória (1 por vez)", $"{r.WriteIopsQ1:N0} IOPS", $"Latência média de {r.WriteLatencyUs:0.0} µs."),
-                new("Leitura 4 KB aleatória (8 em paralelo)", $"{r.ReadIopsQ8:N0} IOPS", "Várias leituras ao mesmo tempo, como ao abrir muitos programas."),
-            };
+                rows.Add(new("Leitura sequencial", $"{r.SeqReadMBs:N0} MB/s", "Blocos de 1 MB. Mede copiar arquivos grandes e carregar jogos."));
+                rows.Add(new("Escrita sequencial", $"{r.SeqWriteMBs:N0} MB/s", "Blocos de 1 MB, direto no disco."));
+            }
+            if (mode != DiskBenchMode.SequentialOnly)
+            {
+                rows.Add(new("Leitura 4 KB aleatória (1 por vez)", $"{r.ReadIopsQ1:N0} IOPS", $"Latência média de {r.ReadLatencyUs:0.0} µs. É o que define a sensação de rapidez do sistema e dos programas."));
+                rows.Add(new("Escrita 4 KB aleatória (1 por vez)", $"{r.WriteIopsQ1:N0} IOPS", $"Latência média de {r.WriteLatencyUs:0.0} µs."));
+                rows.Add(new("Leitura 4 KB aleatória (8 em paralelo)", $"{r.ReadIopsQ8:N0} IOPS", "Várias leituras ao mesmo tempo, como ao abrir muitos programas."));
+            }
+
             DiskResult.ItemsSource = rows;
             DiskStatus.Text = $"Concluído em {r.Drive} · arquivo de teste ({r.FileMb} MB) apagado";
-            SaveBenchRecord("disk", r.Score,
-                $"{r.Drive} · {r.SeqReadMBs:N0}/{r.SeqWriteMBs:N0} MB/s · 4K {r.ReadIopsQ1 / 1000:0.#}k IOPS");
+            string summary = mode == DiskBenchMode.SequentialOnly
+                ? $"{r.Drive} · {r.SeqReadMBs:N0}/{r.SeqWriteMBs:N0} MB/s"
+                : (mode == DiskBenchMode.Random4KOnly
+                    ? $"{r.Drive} · 4K {r.ReadIopsQ1 / 1000:0.#}k IOPS · Lat. {r.ReadLatencyUs:0} µs"
+                    : $"{r.Drive} · {r.SeqReadMBs:N0}/{r.SeqWriteMBs:N0} MB/s · 4K {r.ReadIopsQ1 / 1000:0.#}k IOPS");
+
+            SaveBenchRecord("disk", r.Score, summary);
         }
         catch (OperationCanceledException) { DiskStatus.Text = "Cancelado (arquivo de teste apagado)"; }
         catch (Exception ex)
@@ -120,7 +137,7 @@ public partial class MainWindow
         {
             timer.Stop();
             DiskProgress.ScaleX = 0;
-            DiskDrivePanel.IsEnabled = DiskSizePanel.IsEnabled = true;
+            DiskDrivePanel.IsEnabled = DiskSizePanel.IsEnabled = DiskProfilePanel.IsEnabled = true;
             UpdateDiskBenchLive();
             SetGameBenchRunning(BtnDiskBench, false);
         }
@@ -133,7 +150,7 @@ public partial class MainWindow
         var dlg = new Microsoft.Win32.SaveFileDialog
         {
             Title = "Exportar relatório",
-            Filter = "Relatório HTML (*.html)|*.html|Dados JSON (*.json)|*.json|Documento LaTeX (*.tex)|*.tex",
+            Filter = "Relatório HTML (*.html)|*.html|Documento Markdown (*.md)|*.md|Dados JSON (*.json)|*.json|Documento LaTeX (*.tex)|*.tex",
             DefaultExt = ".html",
             FileName = $"THERMOSYNC-relatorio-{DateTime.Now:yyyyMMdd-HHmm}",
         };
@@ -169,9 +186,11 @@ public partial class MainWindow
 
             string text = ext.Equals(".json", StringComparison.OrdinalIgnoreCase)
                 ? ReportBuilder.Json(data)
-                : ext.Equals(".tex", StringComparison.OrdinalIgnoreCase)
-                    ? ReportBuilder.Latex(data)
-                    : ReportBuilder.Html(data);
+                : ext.Equals(".md", StringComparison.OrdinalIgnoreCase)
+                    ? ReportBuilder.Markdown(data)
+                    : ext.Equals(".tex", StringComparison.OrdinalIgnoreCase)
+                        ? ReportBuilder.Latex(data)
+                        : ReportBuilder.Html(data);
             await File.WriteAllTextAsync(path, text, new UTF8Encoding(true));
 
             SystemSub.Text = $"Relatório salvo em {path}";
