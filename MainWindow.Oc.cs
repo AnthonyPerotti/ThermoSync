@@ -257,10 +257,9 @@ public partial class MainWindow
             return;
         }
         string text = CheckedTag(OcTargetPanel) ?? "cpu";
-        bool flag = ((text == "cpu" || text == "both") ? true : false);
-        bool cpu = flag;
-        flag = ((text == "gpu" || text == "both") ? true : false);
-        bool gpu = flag;
+        bool cpu = text == "cpu" || text == "both";
+        bool gpu = text == "gpu" || text == "both";
+        bool vram = text == "vram" || text == "both";
         TimeSpan duration = TimeSpan.FromMinutes(int.Parse(CheckedTag(OcDurPanel) ?? "15"));
         string label = ((OcLabel.Text.Trim().Length > 0) ? OcLabel.Text.Trim() : "sem descrição");
         _ocCts = new CancellationTokenSource();
@@ -270,7 +269,7 @@ public partial class MainWindow
         BtnOcCheck.Style = (Style)FindResource("OutlineButton");
         OcVerdictCard.Visibility = Visibility.Collapsed;
         StackPanel ocTargetPanel = OcTargetPanel;
-        flag = (OcDurPanel.IsEnabled = false);
+        bool flag = (OcDurPanel.IsEnabled = false);
         ocTargetPanel.IsEnabled = flag;
         DateTime start = DateTime.Now;
         double? cpuScore = null;
@@ -282,8 +281,11 @@ public partial class MainWindow
         int nCpuW = 0;
         int nGpuW = 0;
         string? fail = null;
+        bool hadThermalThrottling = false;
+        bool hadPowerThrottling = false;
         StressTester stress = new StressTester();
         GpuBurn burn = new GpuBurn();
+        GpuVramBench vramBench = new GpuVramBench();
         try
         {
             if (cpu)
@@ -334,6 +336,14 @@ public partial class MainWindow
                         AdapterName = ((_gpus.Count > 0) ? _gpus[0].Name : "")
                     });
                 }
+                if (vram)
+                {
+                    vramBench.Start(new GpuVramSettings
+                    {
+                        AdapterName = ((_gpus.Count > 0) ? _gpus[0].Name : ""),
+                        TargetMb = 2048
+                    });
+                }
                 Stopwatch sw = Stopwatch.StartNew();
                 float cw = default(float);
                 float gw = default(float);
@@ -342,6 +352,9 @@ public partial class MainWindow
                     await Task.Delay(1000);
                     float? cpuTemperature = _monitor.CpuTemperature;
                     float? num = MainGpuTemp();
+                    var thStatus = ThrottlingDetector.Evaluate(cpuTemperature, cpu ? 100f : 0f, null, num, null, gpu ? 100f : 0f, (float?)gw, OcGpu);
+                    if (thStatus.HasThermal) hadThermalThrottling = true;
+                    if (thStatus.HasPower) hadPowerThrottling = true;
                     if (cpuTemperature.HasValue)
                     {
                         float valueOrDefault = cpuTemperature.GetValueOrDefault();
@@ -384,8 +397,12 @@ public partial class MainWindow
                         sumGpuW += (double)gw;
                         nGpuW++;
                     }
+                    string targetNames = (cpu && gpu && vram) ? "CPU + RAM + GPU + VRAM"
+                        : ((cpu && gpu) ? "CPU + RAM + GPU"
+                        : (vram ? "VRAM (GPU)"
+                        : (gpu ? "GPU" : "CPU + RAM")));
                     OcProgress.ScaleX = sw.Elapsed / duration;
-                    OcStatus.Text = $"Stress {((cpu && gpu) ? "CPU + RAM + GPU" : (cpu ? "CPU + RAM" : "GPU"))} · {sw.Elapsed:mm\\:ss} de {duration:mm\\:ss} · máx. CPU {((maxCpu > 0f) ? $"{maxCpu:0} °C" : "—")} · máx. GPU {((maxGpu > 0f) ? $"{maxGpu:0} °C" : "—")}";
+                    OcStatus.Text = $"Stress {targetNames} · {sw.Elapsed:mm\\:ss} de {duration:mm\\:ss} · máx. CPU {((maxCpu > 0f) ? $"{maxCpu:0} °C" : "—")} · máx. GPU {((maxGpu > 0f) ? $"{maxGpu:0} °C" : "—")}";
                     if (cpu && cpuTemperature >= 95f)
                     {
                         fail = $"CPU chegou a {cpuTemperature:0} °C (limite de segurança 95 °C)";
@@ -399,6 +416,16 @@ public partial class MainWindow
                     if (cpu && stress.MemoryErrors > 0)
                     {
                         fail = $"{stress.MemoryErrors} erros de memória (RAM/EXPO instável)";
+                        break;
+                    }
+                    if (vram && vramBench.Errors > 0)
+                    {
+                        fail = $"{vramBench.Errors} erros de memória de vídeo (VRAM instável)";
+                        break;
+                    }
+                    if (vram && vramBench.Error != null)
+                    {
+                        fail = $"o teste de VRAM falhou ({vramBench.Error})";
                         break;
                     }
                     if (gpu && !burn.Running)
@@ -425,6 +452,7 @@ public partial class MainWindow
         {
             stress.Stop();
             burn.Stop();
+            vramBench.Stop();
         }
         _ocRunning = false;
         BtnOcCheck.Content = "INICIAR VERIFICAÇÃO";
@@ -481,6 +509,13 @@ public partial class MainWindow
         {
             list.Add(new KeyValuePair<string, string>("Consumo médio GPU", $"{sumGpuW / (double)nGpuW:0} W"));
         }
+        if (vram)
+        {
+            list.Add(new KeyValuePair<string, string>("Erros de VRAM", $"{vramBench.Errors}"));
+            list.Add(new KeyValuePair<string, string>("VRAM testada", $"{vramBench.AllocatedMb} MB ({vramBench.Passes} passes)"));
+        }
+        string throttleSummary = hadThermalThrottling ? "Corte Térmico Detectado" : (hadPowerThrottling ? "Power Limit Atingido" : "Sem Throttling (Estável)");
+        list.Add(new KeyValuePair<string, string>("Throttling", throttleSummary));
         list.Add(new KeyValuePair<string, string>("Erros WHEA / resets de vídeo", $"{hardwareErrors2.Whea} / {hardwareErrors2.GpuResets}"));
         OcResult.ItemsSource = list;
         OcResult.Foreground = (flag4 ? Fg : Ink);

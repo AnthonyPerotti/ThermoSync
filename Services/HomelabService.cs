@@ -29,6 +29,7 @@ public sealed class HomelabSnapshot
     public string? ActiveGame { get; init; }
     public double? Fps { get; init; }
     public double? FrametimeMs { get; init; }
+    public ThrottlingStatus? Throttling { get; init; }
 
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 }
@@ -154,7 +155,20 @@ public sealed class HomelabService : IDisposable
             var req = ctx.Request;
             var res = ctx.Response;
 
-            if (req.Url?.AbsolutePath == "/metrics")
+            res.Headers.Add("Access-Control-Allow-Origin", "*");
+            res.Headers.Add("Access-Control-Allow-Methods", "GET, OPTIONS");
+            res.Headers.Add("Access-Control-Allow-Headers", "*");
+
+            if (req.HttpMethod.Equals("OPTIONS", StringComparison.OrdinalIgnoreCase))
+            {
+                res.StatusCode = 204;
+                res.OutputStream.Close();
+                return;
+            }
+
+            string path = req.Url?.AbsolutePath ?? "/";
+
+            if (path.Equals("/metrics", StringComparison.OrdinalIgnoreCase))
             {
                 var snap = _snapshotProvider();
                 string metrics = FormatPrometheus(snap);
@@ -165,9 +179,41 @@ public sealed class HomelabService : IDisposable
                 res.StatusCode = 200;
                 res.OutputStream.Write(buf, 0, buf.Length);
             }
+            else if (path.Equals("/api/telemetry", StringComparison.OrdinalIgnoreCase))
+            {
+                var snap = _snapshotProvider();
+                string json = JsonSerializer.Serialize(snap, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    WriteIndented = true
+                });
+                byte[] buf = Encoding.UTF8.GetBytes(json);
+
+                res.ContentType = "application/json; charset=utf-8";
+                res.ContentLength64 = buf.Length;
+                res.StatusCode = 200;
+                res.OutputStream.Write(buf, 0, buf.Length);
+            }
+            else if (path.Equals("/api/health", StringComparison.OrdinalIgnoreCase))
+            {
+                var health = new
+                {
+                    status = "ok",
+                    service = "ThermoSync",
+                    version = "1.5.3",
+                    timestamp = DateTime.UtcNow
+                };
+                string json = JsonSerializer.Serialize(health);
+                byte[] buf = Encoding.UTF8.GetBytes(json);
+
+                res.ContentType = "application/json; charset=utf-8";
+                res.ContentLength64 = buf.Length;
+                res.StatusCode = 200;
+                res.OutputStream.Write(buf, 0, buf.Length);
+            }
             else
             {
-                byte[] msg = Encoding.UTF8.GetBytes("ThermoSync Exporter: acesse /metrics\n");
+                byte[] msg = Encoding.UTF8.GetBytes("ThermoSync API: /api/telemetry, /api/health, /metrics\n");
                 res.ContentType = "text/plain; charset=utf-8";
                 res.ContentLength64 = msg.Length;
                 res.StatusCode = 200;

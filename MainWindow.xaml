@@ -2456,6 +2456,12 @@
                                             <RadioButton Style="{StaticResource Chip}" GroupName="DiskSize" Content="1 GB" Tag="1024" IsChecked="True"/>
                                             <RadioButton Style="{StaticResource Chip}" GroupName="DiskSize" Content="4 GB" Tag="4096"/>
                                         </WrapPanel>
+                                        <TextBlock Text="PERFIL DO TESTE" Style="{StaticResource Label}" Margin="0,10,0,8"/>
+                                        <WrapPanel x:Name="DiskProfilePanel">
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="DiskProfile" Content="Completo" Tag="full" IsChecked="True"/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="DiskProfile" Content="Sequencial" Tag="seq"/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="DiskProfile" Content="4K &amp; Latência" Tag="rnd"/>
+                                        </WrapPanel>
                                         <TextBlock Foreground="{DynamicResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="0,12,0,12">
                                             Mede leitura e escrita sequenciais e acessos aleatórios de 4 KB, direto no disco (sem o cache do Windows).
                                             Grava um arquivo temporário na unidade escolhida e o apaga no final. Feche outros programas pesados antes.
@@ -3050,7 +3056,8 @@
                                         <StackPanel x:Name="OcTargetPanel" Orientation="Horizontal">
                                             <RadioButton Style="{StaticResource Chip}" GroupName="OcTarget" Content="CPU + RAM" Tag="cpu" Margin="0,0,6,0" IsChecked="True"/>
                                             <RadioButton Style="{StaticResource Chip}" GroupName="OcTarget" Content="GPU" Tag="gpu" Margin="0,0,6,0"/>
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="OcTarget" Content="Ambos" Tag="both" Margin="0"/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="OcTarget" Content="VRAM (GPU)" Tag="vram" Margin="0,0,6,0"/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="OcTarget" Content="Tudo" Tag="both" Margin="0"/>
                                         </StackPanel>
                                     </StackPanel>
                                     <StackPanel>
@@ -3309,6 +3316,13 @@
                                 <TextBlock Text="passes / erros" Style="{StaticResource StatSub}"/>
                             </StackPanel>
                         </Border>
+                        <Border>
+                            <StackPanel>
+                                <TextBlock Text="THROTTLING" Style="{StaticResource Label}"/>
+                                <TextBlock x:Name="StThrottling" Text="Estável" Style="{StaticResource StatValue}" FontSize="15" Foreground="#10B981"/>
+                                <TextBlock x:Name="StThrottlingReason" Text="Sem cortes térmicos" Style="{StaticResource StatSub}"/>
+                            </StackPanel>
+                        </Border>
                     </UniformGrid>
 
                     <!-- Gráfico -->
@@ -3359,11 +3373,14 @@
                                     <RadioButton x:Name="BtnFanBalanced" Style="{StaticResource Chip}" GroupName="FanProfiles" Content="Equilibrado" Tag="Balanced" Checked="FanMode_Checked"/>
                                     <RadioButton x:Name="BtnFanPerformance" Style="{StaticResource Chip}" GroupName="FanProfiles" Content="Desempenho" Tag="Performance" Checked="FanMode_Checked"/>
                                     <RadioButton x:Name="BtnFanManual" Style="{StaticResource Chip}" GroupName="FanProfiles" Content="Manual (Fixo)" Tag="Manual" Checked="FanMode_Checked"/>
+                                    <RadioButton x:Name="BtnFanCustom" Style="{StaticResource Chip}" GroupName="FanProfiles" Content="Curva Customizada" Tag="Custom" Checked="FanMode_Checked"/>
                                 </WrapPanel>
                                 <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,12">
                                     • Silencioso: rotação mínima até 55 °C para silêncio acústico, escalando até 100% aos 85 °C.&#x0a;
                                     • Equilibrado: rotação balanceada garantindo fluxo contínuo e subida aos 60 °C.&#x0a;
                                     • Desempenho: alta pressão de ar para manter temperaturas baixas durante sessões de carga e jogos.&#x0a;
+                                    • Manual (Fixo): trava a velocidade de todas as ventoinhas no percentual exato selecionado.&#x0a;
+                                    • Curva Customizada: calibra curvas térmicas personalizadas em 4 estágios baseadas na CPU, GPU ou maior temperatura.&#x0a;
                                     • Padrão (Auto): devolve o controle ao BIOS da placa-mãe e firmware da placa de vídeo.
                                 </TextBlock>
 
@@ -3373,13 +3390,42 @@
                                     <Grid Margin="0,0,0,8">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="60"/>
+                                             <ColumnDefinition Width="60"/>
                                         </Grid.ColumnDefinitions>
                                         <Slider x:Name="SliderFanManual" Minimum="15" Maximum="100" Value="60" SmallChange="5" LargeChange="10"
                                                 VerticalAlignment="Center" ValueChanged="SliderFanManual_ValueChanged"/>
                                         <TextBlock x:Name="TxtFanManualVal" Grid.Column="1" Text="60%" FontWeight="SemiBold"
                                                    HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                     </Grid>
+                                </StackPanel>
+
+                                <!-- Curva Customizada -->
+                                <StackPanel x:Name="PanelFanCustom" Margin="0,4,0,4" Visibility="Collapsed">
+                                    <TextBlock Text="Sensor de Referência para a Curva:" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,0,0,6"/>
+                                    <WrapPanel Margin="0,0,0,10">
+                                        <RadioButton x:Name="BtnCurveSourceMax" Style="{StaticResource Chip}" GroupName="CurveSource" Content="Maior (CPU / GPU)" Tag="Max" IsChecked="True" Checked="CurveSource_Checked"/>
+                                        <RadioButton x:Name="BtnCurveSourceCpu" Style="{StaticResource Chip}" GroupName="CurveSource" Content="CPU" Tag="Cpu" Checked="CurveSource_Checked"/>
+                                        <RadioButton x:Name="BtnCurveSourceGpu" Style="{StaticResource Chip}" GroupName="CurveSource" Content="GPU" Tag="Gpu" Checked="CurveSource_Checked"/>
+                                    </WrapPanel>
+                                    <TextBlock Text="Pontos da Curva de Rotação (PWM):" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,0,0,6"/>
+                                    <UniformGrid Columns="2" Margin="0,0,0,4">
+                                        <StackPanel Margin="0,0,8,8">
+                                            <TextBlock x:Name="TxtCurveP1" Text="Repouso (35 °C): 25%" FontSize="11" Foreground="{DynamicResource Muted}"/>
+                                            <Slider x:Name="SliderCurveP1" Minimum="15" Maximum="100" Value="25" ValueChanged="SliderCurve_ValueChanged"/>
+                                        </StackPanel>
+                                        <StackPanel Margin="8,0,0,8">
+                                            <TextBlock x:Name="TxtCurveP2" Text="Carga Leve (55 °C): 45%" FontSize="11" Foreground="{DynamicResource Muted}"/>
+                                            <Slider x:Name="SliderCurveP2" Minimum="15" Maximum="100" Value="45" ValueChanged="SliderCurve_ValueChanged"/>
+                                        </StackPanel>
+                                        <StackPanel Margin="0,4,8,4">
+                                            <TextBlock x:Name="TxtCurveP3" Text="Carga Alta (70 °C): 70%" FontSize="11" Foreground="{DynamicResource Muted}"/>
+                                            <Slider x:Name="SliderCurveP3" Minimum="15" Maximum="100" Value="70" ValueChanged="SliderCurve_ValueChanged"/>
+                                        </StackPanel>
+                                        <StackPanel Margin="8,4,0,4">
+                                            <TextBlock x:Name="TxtCurveP4" Text="Crítico (85 °C): 100%" FontSize="11" Foreground="{DynamicResource Muted}"/>
+                                            <Slider x:Name="SliderCurveP4" Minimum="15" Maximum="100" Value="100" ValueChanged="SliderCurve_ValueChanged"/>
+                                        </StackPanel>
+                                    </UniformGrid>
                                 </StackPanel>
                             </StackPanel>
                         </Border>

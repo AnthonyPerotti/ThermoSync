@@ -133,9 +133,15 @@ public sealed class FanControlService : IDisposable
     }
 
     /// <summary>
-    /// Applies profile: "Auto", "Quiet", "Balanced", "Performance", or "Manual".
+    /// Applies profile: "Auto", "Quiet", "Balanced", "Performance", "Manual", or "Custom".
     /// </summary>
-    public void ApplyProfile(string profile, int manualPct = 60, float? cpuTemp = null, float? gpuTemp = null)
+    public void ApplyProfile(
+        string profile,
+        int manualPct = 60,
+        float? cpuTemp = null,
+        float? gpuTemp = null,
+        string curveSource = "Max",
+        (float Temp, float Pct)[]? customPoints = null)
     {
         ActiveProfile = profile;
         ManualPercent = manualPct;
@@ -162,6 +168,23 @@ public sealed class FanControlService : IDisposable
                             fan.Control.SetSoftware(targetManual);
                             fan.ControlPercent = targetManual;
                             fan.Mode = "Manual";
+                            break;
+
+                        case "custom":
+                            float refTemp = curveSource.ToLowerInvariant() switch
+                            {
+                                "cpu" => cpuTemp ?? 40f,
+                                "gpu" => gpuTemp ?? 40f,
+                                _ => Math.Max(cpuTemp ?? 40f, gpuTemp ?? 40f)
+                            };
+                            var pts = customPoints is { Length: >= 2 } ? customPoints : new (float, float)[]
+                            {
+                                (35f, 25f), (55f, 45f), (70f, 70f), (85f, 100f)
+                            };
+                            float customTarget = InterpolateCurve(refTemp, pts);
+                            fan.Control.SetSoftware(customTarget);
+                            fan.ControlPercent = customTarget;
+                            fan.Mode = "Personalizado";
                             break;
 
                         case "quiet":

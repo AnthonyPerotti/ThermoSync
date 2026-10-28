@@ -1080,6 +1080,7 @@ try {
         if (BenchLive == null) return;
         var clocks = _monitor.Rows.Where(r => r.HardwareType == HardwareType.Cpu && r.Type == SensorType.Clock &&
                                               r.Name.StartsWith("Core #") && r.RawValue > 0).Select(r => r.RawValue!.Value).ToList();
+        var throttling = ThrottlingDetector.Evaluate(_monitor.CpuTemperature, _monitor.CpuLoad, clocks.Count > 0 ? (float?)clocks.Average() : null, null, null, null, null);
         BenchLive.ItemsSource = new[]
         {
             new KeyValuePair<string, string>("Processador", GameCatalog.ShortCpuName(_cpuName)),
@@ -1088,6 +1089,7 @@ try {
             new KeyValuePair<string, string>("Clock médio", clocks.Count > 0 ? $"{clocks.Average():0} MHz" : "—"),
             new KeyValuePair<string, string>("Consumo", _monitor.CpuPower is float p ? $"{p:0.#} W" : "—"),
             new KeyValuePair<string, string>("Carga da CPU", _monitor.CpuLoad is float l ? $"{l:0} %" : "—"),
+            new KeyValuePair<string, string>("Throttling", throttling.BadgeText),
         };
     }
 
@@ -1101,7 +1103,8 @@ try {
         float? power = MainGpuPower();
 
         string vram = "—";
-        if (_gpus.Count > 0 && _gpus[0].NvmlHandle != IntPtr.Zero && Nvml.MemoryInfo(_gpus[0].NvmlHandle) is Nvml.Memory m && m.Total > 0)
+        IntPtr nvmlH = _gpus.Count > 0 ? _gpus[0].NvmlHandle : IntPtr.Zero;
+        if (nvmlH != IntPtr.Zero && Nvml.MemoryInfo(nvmlH) is Nvml.Memory m && m.Total > 0)
         {
             double usedGb = m.Used / 1073741824.0;
             double totalGb = m.Total / 1073741824.0;
@@ -1111,6 +1114,8 @@ try {
         {
             vram = $"{_gpus[0].VramBytes / 1073741824.0:0.#} GB";
         }
+
+        var throttling = ThrottlingDetector.Evaluate(null, null, null, temp, (float?)hotspot, load, power, nvmlH);
 
         var items = new List<KeyValuePair<string, string>>
         {
@@ -1122,6 +1127,7 @@ try {
         items.Add(new("Carga da GPU", load is float l ? $"{l:0} %" : "—"));
         items.Add(new("Consumo", power is float p ? $"{p:0.#} W" : "—"));
         items.Add(new("VRAM", vram));
+        items.Add(new("Throttling", throttling.BadgeText));
         return items;
     }
 
@@ -1140,6 +1146,7 @@ try {
         if (SimLive == null) return;
         var clocks = _monitor.Rows.Where(r => r.HardwareType == HardwareType.Cpu && r.Type == SensorType.Clock &&
                                               r.Name.StartsWith("Core #") && r.RawValue > 0).Select(r => r.RawValue!.Value).ToList();
+        var throttling = ThrottlingDetector.Evaluate(_monitor.CpuTemperature, _monitor.CpuLoad, clocks.Count > 0 ? (float?)clocks.Average() : null, null, null, null, null);
         SimLive.ItemsSource = new[]
         {
             new KeyValuePair<string, string>("Processador", GameCatalog.ShortCpuName(_cpuName)),
@@ -1148,6 +1155,7 @@ try {
             new KeyValuePair<string, string>("Clock médio", clocks.Count > 0 ? $"{clocks.Average():0} MHz" : "—"),
             new KeyValuePair<string, string>("Consumo", _monitor.CpuPower is float p ? $"{p:0.#} W" : "—"),
             new KeyValuePair<string, string>("Carga da CPU", _monitor.CpuLoad is float l ? $"{l:0} %" : "—"),
+            new KeyValuePair<string, string>("Throttling", throttling.BadgeText),
         };
     }
 
@@ -2005,6 +2013,15 @@ try {
         StFps.Text = _gpuBurnOn && _burn.Fps > 0 ? $"{_burn.Fps:0}" : "—";
         StFpsAvg.Text = _gpuBurnOn && _burn.AverageFps > 0 ? $"média {_burn.AverageFps:0}" : "média —";
 
+        IntPtr nvmlHandle = _gpus.Count > 0 ? _gpus[0].NvmlHandle : IntPtr.Zero;
+        var throttle = ThrottlingDetector.Evaluate(temp, load, null, gTemp, null, null, gPower, nvmlHandle);
+        if (StThrottling != null)
+        {
+            StThrottling.Text = throttle.HasThermal ? "Corte Térmico" : (throttle.HasPower ? "Power Limit" : "Estável");
+            StThrottling.Foreground = (Brush)new BrushConverter().ConvertFromString(throttle.BadgeColorHex)!;
+            StThrottlingReason.Text = throttle.CpuReason ?? throttle.GpuReason ?? "Sem cortes";
+        }
+
         if (TestRunning)
         {
             var elapsed = DateTime.Now - _stressStart;
@@ -2151,6 +2168,9 @@ try {
             ftMs = fs.FrameTimeMs;
         }
 
+        IntPtr nvmlH = _gpus.Count > 0 ? _gpus[0].NvmlHandle : IntPtr.Zero;
+        var throttling = ThrottlingDetector.Evaluate(cpuTemp, cpuLoad, null, gTemp, (float?)gHotspot, (float?)gLoad, gPower, nvmlH);
+
         return new HomelabSnapshot
         {
             CpuTemp = cpuTemp,
@@ -2167,6 +2187,7 @@ try {
             ActiveGame = game,
             Fps = fps,
             FrametimeMs = ftMs,
+            Throttling = throttling,
         };
     }
 }

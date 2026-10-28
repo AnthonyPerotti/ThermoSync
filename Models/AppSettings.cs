@@ -108,8 +108,17 @@ public sealed class AppSettings
     public int AlertCooldownMinutes { get; set; } = 5;
 
     // SYNC FAN (Controle Ativo de Ventoinhas)
-    public string FanMode { get; set; } = "Auto"; // Auto | Quiet | Balanced | Performance | Manual
+    public string FanMode { get; set; } = "Auto"; // Auto | Quiet | Balanced | Performance | Manual | Custom
     public int FanManualPct { get; set; } = 60;
+    public string FanCurveSource { get; set; } = "Max"; // Max | Cpu | Gpu
+    public int FanCurveP1Temp { get; set; } = 35;
+    public int FanCurveP1Pct { get; set; } = 25;
+    public int FanCurveP2Temp { get; set; } = 55;
+    public int FanCurveP2Pct { get; set; } = 45;
+    public int FanCurveP3Temp { get; set; } = 70;
+    public int FanCurveP3Pct { get; set; } = 70;
+    public int FanCurveP4Temp { get; set; } = 85;
+    public int FanCurveP4Pct { get; set; } = 100;
 
     // SYNC NET (Teste de Rede Homelab)
     public string HomelabNetHost { get; set; } = "192.168.1.1";

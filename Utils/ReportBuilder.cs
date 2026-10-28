@@ -56,6 +56,88 @@ public static class ReportBuilder
         benchmarks = d.Benchmarks,
     }, new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
 
+    public static string Markdown(ReportData d)
+    {
+        var sb = new StringBuilder(16 * 1024);
+        sb.AppendLine("# Relatorio de Diagnostico e Telemetria - THERMOSYNC");
+        sb.AppendLine();
+        sb.AppendLine($"- **Computador:** `{d.Machine}`");
+        sb.AppendLine($"- **Data e Hora:** {d.Date:dd/MM/yyyy HH:mm:ss}");
+        if (!string.IsNullOrEmpty(d.AppVersion))
+            sb.AppendLine($"- **Versao:** v{d.AppVersion}");
+        sb.AppendLine();
+
+        if (d.Disks.Count > 0)
+        {
+            sb.AppendLine("## Armazenamento e Saude dos Discos");
+            sb.AppendLine();
+            sb.AppendLine("| Dispositivo | Status | Detalhes | Metricas |");
+            sb.AppendLine("| :--- | :--- | :--- | :--- |");
+            foreach (var disk in d.Disks)
+            {
+                string metrics = string.Join("; ", disk.Metrics.Select(m => $"{m.Key}: {m.Value}"));
+                sb.AppendLine($"| **{disk.Name}** | `{disk.Verdict}` | {disk.Details} ({disk.Reasons}) | {metrics} |");
+            }
+            sb.AppendLine();
+        }
+
+        if (d.Gpus.Count > 0)
+        {
+            sb.AppendLine("## Placas de Video (GPU)");
+            sb.AppendLine();
+            foreach (var gpu in d.Gpus)
+            {
+                sb.AppendLine($"### {gpu.Name} {gpu.Subtitle}");
+                sb.AppendLine();
+                foreach (var sec in gpu.Sections)
+                {
+                    sb.AppendLine($"#### {sec.Name}");
+                    if (sec.Children != null)
+                    {
+                        foreach (var c in sec.Children)
+                        {
+                            sb.AppendLine($"- **{c.Name}:** {c.Value ?? ""}");
+                        }
+                    }
+                    sb.AppendLine();
+                }
+            }
+        }
+
+        if (d.System.Count > 0)
+        {
+            sb.AppendLine("## Especificacoes do Sistema");
+            sb.AppendLine();
+            foreach (var node in d.System)
+            {
+                sb.AppendLine($"### {node.Name}");
+                if (node.Children != null)
+                {
+                    foreach (var c in node.Children)
+                    {
+                        sb.AppendLine($"- **{c.Name}:** {c.Value ?? ""}");
+                    }
+                }
+                sb.AppendLine();
+            }
+        }
+
+        if (d.Benchmarks.Count > 0)
+        {
+            sb.AppendLine("## Historico de Benchmarks e Estabilidade");
+            sb.AppendLine();
+            sb.AppendLine("| Data | Teste | Resultado / Telemetria |");
+            sb.AppendLine("| :--- | :--- | :--- |");
+            foreach (var b in d.Benchmarks)
+            {
+                sb.AppendLine($"| {b.Date:dd/MM/yyyy HH:mm} | **{b.Test}** | {b.Summary} |");
+            }
+            sb.AppendLine();
+        }
+
+        return sb.ToString();
+    }
+
     private static void Section(StringBuilder sb, string title, List<ReportDisk> items)
     {
         if (items.Count == 0) return;

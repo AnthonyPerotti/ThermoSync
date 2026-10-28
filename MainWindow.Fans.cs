@@ -29,6 +29,9 @@ public partial class MainWindow
             case "manual":
                 BtnFanManual.IsChecked = true;
                 break;
+            case "custom":
+                BtnFanCustom.IsChecked = true;
+                break;
             default:
                 BtnFanAuto.IsChecked = true;
                 break;
@@ -37,6 +40,20 @@ public partial class MainWindow
         SliderFanManual.Value = _settings.FanManualPct;
         TxtFanManualVal.Text = $"{_settings.FanManualPct}%";
         PanelFanManual.Visibility = BtnFanManual.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+
+        if (_settings.FanCurveSource.Equals("Cpu", StringComparison.OrdinalIgnoreCase))
+            BtnCurveSourceCpu.IsChecked = true;
+        else if (_settings.FanCurveSource.Equals("Gpu", StringComparison.OrdinalIgnoreCase))
+            BtnCurveSourceGpu.IsChecked = true;
+        else
+            BtnCurveSourceMax.IsChecked = true;
+
+        SliderCurveP1.Value = _settings.FanCurveP1Pct;
+        SliderCurveP2.Value = _settings.FanCurveP2Pct;
+        SliderCurveP3.Value = _settings.FanCurveP3Pct;
+        SliderCurveP4.Value = _settings.FanCurveP4Pct;
+        UpdateCurveLabels();
+        PanelFanCustom.Visibility = BtnFanCustom.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
         RefreshFansList();
     }
@@ -59,9 +76,50 @@ public partial class MainWindow
         _settings.Save();
 
         if (PanelFanManual != null)
-            PanelFanManual.Visibility = mode == "Manual" ? Visibility.Visible : Visibility.Collapsed;
+            PanelFanManual.Visibility = mode.Equals("Manual", StringComparison.OrdinalIgnoreCase) ? Visibility.Visible : Visibility.Collapsed;
+        if (PanelFanCustom != null)
+            PanelFanCustom.Visibility = mode.Equals("Custom", StringComparison.OrdinalIgnoreCase) ? Visibility.Visible : Visibility.Collapsed;
 
         ApplyCurrentFanProfile();
+    }
+
+    private void CurveSource_Checked(object sender, RoutedEventArgs e)
+    {
+        if (sender is not RadioButton rb || rb.Tag is not string src) return;
+
+        _settings.FanCurveSource = src;
+        _settings.Save();
+
+        if (BtnFanCustom?.IsChecked == true)
+        {
+            ApplyCurrentFanProfile();
+        }
+    }
+
+    private void SliderCurve_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (SliderCurveP1 == null || SliderCurveP2 == null || SliderCurveP3 == null || SliderCurveP4 == null) return;
+
+        _settings.FanCurveP1Pct = (int)Math.Round(SliderCurveP1.Value);
+        _settings.FanCurveP2Pct = (int)Math.Round(SliderCurveP2.Value);
+        _settings.FanCurveP3Pct = (int)Math.Round(SliderCurveP3.Value);
+        _settings.FanCurveP4Pct = (int)Math.Round(SliderCurveP4.Value);
+        _settings.Save();
+
+        UpdateCurveLabels();
+
+        if (BtnFanCustom?.IsChecked == true)
+        {
+            ApplyCurrentFanProfile();
+        }
+    }
+
+    private void UpdateCurveLabels()
+    {
+        if (TxtCurveP1 != null) TxtCurveP1.Text = $"Repouso ({_settings.FanCurveP1Temp} °C): {_settings.FanCurveP1Pct}%";
+        if (TxtCurveP2 != null) TxtCurveP2.Text = $"Carga Leve ({_settings.FanCurveP2Temp} °C): {_settings.FanCurveP2Pct}%";
+        if (TxtCurveP3 != null) TxtCurveP3.Text = $"Carga Alta ({_settings.FanCurveP3Temp} °C): {_settings.FanCurveP3Pct}%";
+        if (TxtCurveP4 != null) TxtCurveP4.Text = $"Crítico ({_settings.FanCurveP4Temp} °C): {_settings.FanCurveP4Pct}%";
     }
 
     private void SliderFanManual_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -86,7 +144,14 @@ public partial class MainWindow
 
         float? cpuTemp = _monitor.CpuTemperature;
         float? gpuTemp = MainGpuTemp();
-        _fans.ApplyProfile(_settings.FanMode, _settings.FanManualPct, cpuTemp, gpuTemp);
+        var customPoints = new[]
+        {
+            ((float)_settings.FanCurveP1Temp, (float)_settings.FanCurveP1Pct),
+            ((float)_settings.FanCurveP2Temp, (float)_settings.FanCurveP2Pct),
+            ((float)_settings.FanCurveP3Temp, (float)_settings.FanCurveP3Pct),
+            ((float)_settings.FanCurveP4Temp, (float)_settings.FanCurveP4Pct),
+        };
+        _fans.ApplyProfile(_settings.FanMode, _settings.FanManualPct, cpuTemp, gpuTemp, _settings.FanCurveSource, customPoints);
         UpdateFansLive();
     }
 
