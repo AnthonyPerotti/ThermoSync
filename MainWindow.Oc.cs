@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -423,9 +423,19 @@ public partial class MainWindow
                         fail = $"{vramBench.Errors} erros de memória de vídeo (VRAM instável)";
                         break;
                     }
+                    if (vram && vramBench.TdrDetected)
+                    {
+                        fail = "TDR detectado: o driver da placa de vídeo parou de responder durante o teste de VRAM (overclock instável)";
+                        break;
+                    }
                     if (vram && vramBench.Error != null)
                     {
                         fail = $"o teste de VRAM falhou ({vramBench.Error})";
+                        break;
+                    }
+                    if (gpu && burn.TdrDetected)
+                    {
+                        fail = "TDR detectado: o driver da placa de vídeo foi resetado pelo Windows durante o estresse de GPU";
                         break;
                     }
                     if (gpu && !burn.Running)
@@ -467,6 +477,11 @@ public partial class MainWindow
             return;
         }
         HardwareErrors hardwareErrors2 = OcCheck.ErrorsSince(start);
+        if (fail == null && (burn.TdrDetected || vramBench.TdrDetected))
+        {
+            fail = "o Windows recuperou o driver de vídeo via TDR durante o teste de estabilidade";
+        }
+        else
         if (fail == null && hardwareErrors2.Total > 0)
         {
             fail = $"o Windows registrou {hardwareErrors2.Whea} erros WHEA e {hardwareErrors2.GpuResets} reinícios do driver de vídeo";
@@ -517,6 +532,8 @@ public partial class MainWindow
         string throttleSummary = hadThermalThrottling ? "Corte Térmico Detectado" : (hadPowerThrottling ? "Power Limit Atingido" : "Sem Throttling (Estável)");
         list.Add(new KeyValuePair<string, string>("Throttling", throttleSummary));
         list.Add(new KeyValuePair<string, string>("Erros WHEA / resets de vídeo", $"{hardwareErrors2.Whea} / {hardwareErrors2.GpuResets}"));
+        bool tdrOccurred = burn.TdrDetected || vramBench.TdrDetected || hardwareErrors2.GpuResets > 0;
+        list.Add(new KeyValuePair<string, string>("Integridade do Driver (TDR)", tdrOccurred ? "Comprometida (TDR / reset detectado)" : "Íntegro (Sem falhas)"));
         OcResult.ItemsSource = list;
         OcResult.Foreground = (flag4 ? Fg : Ink);
         OcVerdictCard.Visibility = Visibility.Visible;

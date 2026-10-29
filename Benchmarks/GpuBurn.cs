@@ -42,7 +42,8 @@ public sealed class GpuBurn
     public double AverageFps => _seconds > 0 ? Frames / _seconds : 0;
     public string? Error { get; private set; }
     public string AdapterUsed { get; private set; } = "";
-    public bool ClosedByUser { get; private set; }
+    public bool ClosedByUser { get; private set; } 
+    public bool TdrDetected { get; private set; }
 
     public void Start(GpuBurnSettings s)
     {
@@ -269,6 +270,13 @@ float4 PS(PSIn i) : SV_TARGET
                     DispatchMessageW(ref msg);
                 }
                 if (_stop) break;
+
+                if (device.DeviceRemovedReason.Failure)
+                {
+                    TdrDetected = true;
+                    Error = $"TDR detectado (Driver Display Reset: {device.DeviceRemovedReason})";
+                    break;
+                }
 
                 GetClientRect(hwnd, out rc);
                 if (rc.Right <= 0 || rc.Bottom <= 0) { Thread.Sleep(50); continue; } // minimizada

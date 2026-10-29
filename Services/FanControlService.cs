@@ -132,6 +132,10 @@ public sealed class FanControlService : IDisposable
         }
     }
 
+    private readonly Dictionary<string, float> _lastAppliedPwm = new();
+    private readonly Dictionary<string, float> _lastRefTemp = new();
+    private DateTime _lastUpdateTime = DateTime.UtcNow;
+
     /// <summary>
     /// Applies profile: "Auto", "Quiet", "Balanced", "Performance", "Manual", or "Custom".
     /// </summary>
@@ -141,10 +145,16 @@ public sealed class FanControlService : IDisposable
         float? cpuTemp = null,
         float? gpuTemp = null,
         string curveSource = "Max",
-        (float Temp, float Pct)[]? customPoints = null)
+        (float Temp, float Pct)[]? customPoints = null,
+        float hysteresis = 3.0f,
+        float maxRampDownPerSec = 4.0f)
     {
         ActiveProfile = profile;
         ManualPercent = manualPct;
+
+        DateTime now = DateTime.UtcNow;
+        double deltaSec = Math.Clamp((now - _lastUpdateTime).TotalSeconds, 0.2, 5.0);
+        _lastUpdateTime = now;
 
         float maxTemp = Math.Max(cpuTemp ?? 40f, gpuTemp ?? 40f);
 
@@ -161,6 +171,8 @@ public sealed class FanControlService : IDisposable
                         case "auto":
                             fan.Control.SetDefault();
                             fan.Mode = "Auto";
+                            _lastAppliedPwm.Remove(fan.Id);
+                            _lastRefTemp.Remove(fan.Id);
                             break;
 
                         case "manual":
@@ -168,6 +180,7 @@ public sealed class FanControlService : IDisposable
                             fan.Control.SetSoftware(targetManual);
                             fan.ControlPercent = targetManual;
                             fan.Mode = "Manual";
+                            _lastAppliedPwm[fan.Id] = targetManual;
                             break;
 
                         case "custom":
@@ -181,7 +194,8 @@ public sealed class FanControlService : IDisposable
                             {
                                 (35f, 25f), (55f, 45f), (70f, 70f), (85f, 100f)
                             };
-                            float customTarget = InterpolateCurve(refTemp, pts);
+                            float rawTarget = InterpolateCurve(refTemp, pts);
+                            float customTarget = SmoothPwm(fan.Id, rawTarget, refTemp, hysteresis, maxRampDownPerSec, deltaSec);
                             fan.Control.SetSoftware(customTarget);
                             fan.ControlPercent = customTarget;
                             fan.Mode = "Personalizado";
@@ -189,11 +203,12 @@ public sealed class FanControlService : IDisposable
 
                         case "quiet":
                             // Silent profile: quiet up to 65C, ramps up to 100% at 85C
-                            float quietTarget = InterpolateCurve(maxTemp,
+                            float rawQuiet = InterpolateCurve(maxTemp,
                                 (35f, 25f),
                                 (55f, 35f),
                                 (70f, 55f),
                                 (85f, 100f));
+                            float quietTarget = SmoothPwm(fan.Id, rawQuiet, maxTemp, hysteresis, maxRampDownPerSec, deltaSec);
                             fan.Control.SetSoftware(quietTarget);
                             fan.ControlPercent = quietTarget;
                             fan.Mode = "Silencioso";
@@ -201,11 +216,12 @@ public sealed class FanControlService : IDisposable
 
                         case "balanced":
                             // Balanced profile: reasonable noise, ramp up at 60C
-                            float balancedTarget = InterpolateCurve(maxTemp,
+                            float rawBalanced = InterpolateCurve(maxTemp,
                                 (35f, 35f),
                                 (50f, 50f),
                                 (68f, 75f),
                                 (80f, 100f));
+                            float balancedTarget = SmoothPwm(fan.Id, rawBalanced, maxTemp, hysteresis, maxRampDownPerSec, deltaSec);
                             fan.Control.SetSoftware(balancedTarget);
                             fan.ControlPercent = balancedTarget;
                             fan.Mode = "Equilibrado";
@@ -213,11 +229,12 @@ public sealed class FanControlService : IDisposable
 
                         case "performance":
                             // Performance: aggressive airflow for low temps
-                            float perfTarget = InterpolateCurve(maxTemp,
+                            float rawPerf = InterpolateCurve(maxTemp,
                                 (35f, 50f),
                                 (50f, 70f),
                                 (65f, 90f),
                                 (75f, 100f));
+                            float perfTarget = SmoothPwm(fan.Id, rawPerf, maxTemp, hysteresis, maxRampDownPerSec, deltaSec);
                             fan.Control.SetSoftware(perfTarget);
                             fan.ControlPercent = perfTarget;
                             fan.Mode = "Desempenho";
@@ -230,6 +247,40 @@ public sealed class FanControlService : IDisposable
                 }
             }
         }
+    }
+
+    private float SmoothPwm(string fanId, float targetPwm, float currentRefTemp, float hysteresis, float maxRampDownPerSec, double deltaSec)
+    {
+        if (!_lastAppliedPwm.TryGetValue(fanId, out float lastPwm))
+        {
+            _lastAppliedPwm[fanId] = targetPwm;
+            _lastRefTemp[fanId] = currentRefTemp;
+            return targetPwm;
+        }
+
+        float lastTemp = _lastRefTemp.TryGetValue(fanId, out float lt) ? lt : currentRefTemp;
+
+        // Resposta imediata de subida (prioridade para refrigeracao segura)
+        if (targetPwm >= lastPwm || currentRefTemp > lastTemp)
+        {
+            _lastAppliedPwm[fanId] = targetPwm;
+            _lastRefTemp[fanId] = currentRefTemp;
+            return targetPwm;
+        }
+
+        // Histerese termica: se a queda for menor que o limiar de histerese, mantem o PWM
+        if (lastTemp - currentRefTemp < hysteresis)
+        {
+            return lastPwm;
+        }
+
+        // Desaceleracao suave amortecida por segundo
+        float maxDrop = (float)(maxRampDownPerSec * Math.Max(0.5, deltaSec));
+        float smoothedPwm = Math.Max(targetPwm, lastPwm - maxDrop);
+
+        _lastAppliedPwm[fanId] = smoothedPwm;
+        _lastRefTemp[fanId] = currentRefTemp;
+        return smoothedPwm;
     }
 
     private static float InterpolateCurve(float temp, params (float Temp, float Pct)[] points)

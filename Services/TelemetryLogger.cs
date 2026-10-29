@@ -10,7 +10,7 @@ namespace ThermoSync;
 /// </summary>
 public sealed class TelemetryLogger : IDisposable
 {
-    private readonly string _logDir;
+    public static string LogDir => Path.Combine(AppSettings.Folder, "telemetry");
     private readonly ConcurrentQueue<string> _writeQueue = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly Task _workerTask;
@@ -20,11 +20,12 @@ public sealed class TelemetryLogger : IDisposable
     private bool _disposed;
 
     public bool IsEnabled { get; set; } = true;
+    public long TotalSamplesWritten { get; private set; }
+    public string? CurrentLogFile => _currentFilePath;
 
     public TelemetryLogger()
     {
-        _logDir = Path.Combine(AppSettings.Folder, "telemetry");
-        Directory.CreateDirectory(_logDir);
+        Directory.CreateDirectory(LogDir);
         _workerTask = Task.Run(ProcessQueueAsync);
     }
 
@@ -33,13 +34,20 @@ public sealed class TelemetryLogger : IDisposable
         float? cpuTemp,
         float? cpuLoad,
         float? cpuClock,
+        float? cpuPowerW,
         float? gpuTemp,
         double? gpuHotspot,
         double? gpuLoad,
         float? gpuClock,
+        float? gpuPowerW,
+        double? vramUsedGb,
+        double? vramTotalGb,
         double ramUsedGb,
         double ramTotalGb,
         double ramPct,
+        float? diskTemp,
+        float? diskLoad,
+        string? throttlingStatus,
         string? activeGame)
     {
         if (!IsEnabled || _disposed) return;
@@ -47,18 +55,25 @@ public sealed class TelemetryLogger : IDisposable
         var culture = CultureInfo.InvariantCulture;
         string line = string.Format(
             culture,
-            "{0:yyyy-MM-dd HH:mm:ss},{1},{2},{3},{4},{5},{6},{7},{8:0.00},{9:0.00},{10:0.0},{11}",
+            "{0:yyyy-MM-dd HH:mm:ss},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12:0.00},{13:0.00},{14:0.0},{15},{16},{17},{18}",
             timestamp,
             cpuTemp.HasValue ? cpuTemp.Value.ToString("0.0", culture) : "",
             cpuLoad.HasValue ? cpuLoad.Value.ToString("0.0", culture) : "",
             cpuClock.HasValue ? cpuClock.Value.ToString("0", culture) : "",
+            cpuPowerW.HasValue ? cpuPowerW.Value.ToString("0.0", culture) : "",
             gpuTemp.HasValue ? gpuTemp.Value.ToString("0.0", culture) : "",
             gpuHotspot.HasValue ? gpuHotspot.Value.ToString("0.0", culture) : "",
             gpuLoad.HasValue ? gpuLoad.Value.ToString("0.0", culture) : "",
             gpuClock.HasValue ? gpuClock.Value.ToString("0", culture) : "",
+            gpuPowerW.HasValue ? gpuPowerW.Value.ToString("0.0", culture) : "",
+            vramUsedGb.HasValue ? vramUsedGb.Value.ToString("0.00", culture) : "",
+            vramTotalGb.HasValue ? vramTotalGb.Value.ToString("0.00", culture) : "",
             ramUsedGb,
             ramTotalGb,
             ramPct,
+            diskTemp.HasValue ? diskTemp.Value.ToString("0.0", culture) : "",
+            diskLoad.HasValue ? diskLoad.Value.ToString("0.0", culture) : "",
+            EscapeCsv(throttlingStatus ?? ""),
             EscapeCsv(activeGame ?? "")
         );
 
@@ -95,6 +110,7 @@ public sealed class TelemetryLogger : IDisposable
                 try
                 {
                     await File.AppendAllLinesAsync(_currentFilePath, batch, _cts.Token);
+                    TotalSamplesWritten += batch.Count;
                 }
                 catch { }
             }
@@ -105,7 +121,12 @@ public sealed class TelemetryLogger : IDisposable
         {
             var remaining = new List<string>();
             while (_writeQueue.TryDequeue(out var line)) remaining.Add(line);
-            try { File.AppendAllLines(_currentFilePath, remaining); } catch { }
+            try
+            {
+                File.AppendAllLines(_currentFilePath, remaining);
+                TotalSamplesWritten += remaining.Count;
+            }
+            catch { }
         }
     }
 
@@ -115,13 +136,13 @@ public sealed class TelemetryLogger : IDisposable
         if (_currentDateStr != dateStr || string.IsNullOrEmpty(_currentFilePath))
         {
             _currentDateStr = dateStr;
-            _currentFilePath = Path.Combine(_logDir, $"telemetry-{_currentDateStr}.csv");
+            _currentFilePath = Path.Combine(LogDir, $"telemetry-{_currentDateStr}.csv");
 
             if (!File.Exists(_currentFilePath))
             {
                 try
                 {
-                    const string header = "Timestamp,CpuTemp,CpuLoad,CpuClock,GpuTemp,GpuHotspot,GpuLoad,GpuClock,RamUsedGb,RamTotalGb,RamPct,ActiveGame";
+                    const string header = "Timestamp,CpuTemp,CpuLoad,CpuClock,CpuPowerW,GpuTemp,GpuHotspot,GpuLoad,GpuClock,GpuPowerW,GpuVramUsedGb,GpuVramTotalGb,RamUsedGb,RamTotalGb,RamPct,DiskTemp,DiskLoad,ThrottlingStatus,ActiveGame";
                     File.WriteAllText(_currentFilePath, header + Environment.NewLine);
                 }
                 catch { }
@@ -136,7 +157,7 @@ public sealed class TelemetryLogger : IDisposable
         try
         {
             var cutoff = DateTime.Now.AddDays(-7);
-            var dir = new DirectoryInfo(_logDir);
+            var dir = new DirectoryInfo(LogDir);
             foreach (var file in dir.GetFiles("telemetry-*.csv"))
             {
                 if (file.CreationTime < cutoff)

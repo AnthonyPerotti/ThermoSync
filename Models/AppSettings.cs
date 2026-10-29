@@ -5,7 +5,17 @@ using System.Text.Json;
 
 namespace ThermoSync;
 
-public sealed record BenchRun(DateTime Date, double? Multi, double? Single, bool Sustained, string Cpu);
+public sealed record BenchRun(
+    DateTime Date,
+    double? Multi,
+    double? Single,
+    bool Sustained,
+    string Cpu,
+    double? PtsPerWatt = null,
+    double? AvgPowerW = null,
+    double? PeakTempC = null,
+    double? AvgClockMhz = null
+);
 
 /// <summary>Resultado dos benchmarks de jogo (Test = "gpu", "sim" ou "mem"). Score é usado para a barra do histórico.</summary>
 public sealed record BenchRecord(DateTime Date, string Test, double Score, string Summary);
@@ -119,6 +129,8 @@ public sealed class AppSettings
     public int FanCurveP3Pct { get; set; } = 70;
     public int FanCurveP4Temp { get; set; } = 85;
     public int FanCurveP4Pct { get; set; } = 100;
+    public int FanCurveHysteresis { get; set; } = 3;
+    public int FanRampDownPctPerSec { get; set; } = 4;
 
     // SYNC NET (Teste de Rede Homelab)
     public string HomelabNetHost { get; set; } = "192.168.1.1";

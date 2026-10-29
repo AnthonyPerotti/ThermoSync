@@ -23,6 +23,7 @@ public partial class MainWindow
         ChkCloseToTray.IsChecked = _settings.CloseToTray;
 
         ChkTelemetryLog.IsChecked = _settings.TelemetryLogEnabled;
+        UpdateTelemetryStatusUi();
 
         var ver = UpdateService.GetCurrentVersion();
         TxtAppVersion.Text = $"Versão instalada: v{ver.Major}.{ver.Minor}.{ver.Build}";
@@ -102,16 +103,29 @@ public partial class MainWindow
         _settings.TelemetryLogEnabled = ChkTelemetryLog.IsChecked == true;
         _telemetryLogger.IsEnabled = _settings.TelemetryLogEnabled;
         _settings.Save();
+        UpdateTelemetryStatusUi();
+    }
+
+    private void UpdateTelemetryStatusUi()
+    {
+        if (TxtTelemetryStatus == null) return;
+        if (!_settings.TelemetryLogEnabled)
+        {
+            TxtTelemetryStatus.Text = "Gravação contínua desativada nas configurações.";
+            return;
+        }
+
+        string file = string.IsNullOrEmpty(_telemetryLogger.CurrentLogFile)
+            ? "Aguardando primeira amostra"
+            : Path.GetFileName(_telemetryLogger.CurrentLogFile);
+        TxtTelemetryStatus.Text = $"Arquivo ativo: {file} · Amostras gravadas nesta sessão: {_telemetryLogger.TotalSamplesWritten:N0}";
     }
 
     private void BtnOpenLogsFolder_Click(object sender, RoutedEventArgs e)
     {
         try
         {
-            string logsDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "ThermoSync", "Logs"
-            );
+            string logsDir = TelemetryLogger.LogDir;
             Directory.CreateDirectory(logsDir);
             Process.Start(new ProcessStartInfo
             {
@@ -122,6 +136,47 @@ public partial class MainWindow
         catch (Exception ex)
         {
             MessageBox.Show($"Não foi possível abrir a pasta de logs: {ex.Message}", "ThermoSync", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void BtnAnalyzeLogs_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            string dateStr = DateTime.Now.ToString("yyyy-MM-dd");
+            string logFile = Path.Combine(TelemetryLogger.LogDir, $"telemetry-{dateStr}.csv");
+
+            if (!File.Exists(logFile))
+            {
+                if (TxtTelemetryAnalysisResult != null)
+                    TxtTelemetryAnalysisResult.Text = "Nenhum arquivo de telemetria encontrado para o dia de hoje. Ative a gravação contínua acima.";
+                return;
+            }
+
+            var summary = TelemetryAnalyzer.AnalyzeFile(logFile);
+            if (summary == null)
+            {
+                if (TxtTelemetryAnalysisResult != null)
+                    TxtTelemetryAnalysisResult.Text = "Arquivo de telemetria de hoje ainda não contém amostras suficientes para diagnóstico.";
+                return;
+            }
+
+            string throtMsg = summary.ThrottlingCount > 0 ? $"{summary.ThrottlingCount} evento(s) de corte" : "Nenhum corte térmico/elétrico";
+            string gameMsg = summary.MostActiveGame != "Nenhum" ? $" · Jogo em destaque: {summary.MostActiveGame}" : "";
+
+            if (TxtTelemetryAnalysisResult != null)
+            {
+                TxtTelemetryAnalysisResult.Text =
+                    $"Hoje ({summary.Duration:hh\\:mm\\:ss} monitorados, {summary.TotalSamples:N0} amostras):\n" +
+                    $"• CPU: Média {summary.AvgCpuTemp:0.#} °C (Pico: {summary.MaxCpuTemp:0.#} °C) | Carga Média: {summary.AvgCpuLoad:0.#} % (Pico: {summary.MaxCpuLoad:0.#} %)\n" +
+                    $"• GPU: Média {summary.AvgGpuTemp:0.#} °C (Pico: {summary.MaxGpuTemp:0.#} °C) | Carga Média: {summary.AvgGpuLoad:0.#} % (Pico: {summary.MaxGpuLoad:0.#} %)\n" +
+                    $"• RAM: Média {summary.AvgRamPct:0.#} % (Pico: {summary.MaxRamPct:0.#} %) | Throttling: {throtMsg}{gameMsg}";
+            }
+        }
+        catch (Exception ex)
+        {
+            if (TxtTelemetryAnalysisResult != null)
+                TxtTelemetryAnalysisResult.Text = $"Erro ao analisar logs: {ex.Message}";
         }
     }
 

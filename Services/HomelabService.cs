@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -8,8 +8,18 @@ using System.Text.Json;
 namespace ThermoSync;
 
 /// <summary>Snapshot de telemetria consolidada para exportação Prometheus e MQTT.</summary>
+public sealed class DiskTelemetry
+{
+    public string Name { get; init; } = "";
+    public double? TemperatureCelsius { get; init; }
+    public double? HealthPercentage { get; init; }
+    public double? LoadPercent { get; init; }
+    public double? UsedPercent { get; init; }
+}
+
 public sealed class HomelabSnapshot
 {
+    public List<DiskTelemetry> Disks { get; init; } = new();
     public double? CpuTemp { get; init; }
     public double? CpuLoad { get; init; }
     public double? CpuPowerW { get; init; }
@@ -200,7 +210,7 @@ public sealed class HomelabService : IDisposable
                 {
                     status = "ok",
                     service = "ThermoSync",
-                    version = "1.5.5",
+                    version = "1.5.6",
                     timestamp = DateTime.UtcNow
                 };
                 string json = JsonSerializer.Serialize(health);
@@ -254,6 +264,22 @@ public sealed class HomelabService : IDisposable
 
         AppendGauge("thermosync_ram_used_bytes", "Memoria RAM utilizada em bytes", s.RamUsedGb * 1024.0 * 1024.0 * 1024.0);
         AppendGauge("thermosync_ram_total_bytes", "Memoria RAM total em bytes", s.RamTotalGb * 1024.0 * 1024.0 * 1024.0);
+
+        foreach (var d in s.Disks)
+        {
+            string diskClean = d.Name.Replace("\"", "\\\"");
+            string diskTag = "disk=\"" + diskClean + "\"";
+            AppendGauge("thermosync_disk_temperature_celsius", "Temperatura do disco em graus Celsius", d.TemperatureCelsius, diskTag);
+            AppendGauge("thermosync_disk_health_percentage", "Saude do disco em porcentagem S.M.A.R.T.", d.HealthPercentage, diskTag);
+            AppendGauge("thermosync_disk_load_percent", "Carga de atividade do disco em porcentagem", d.LoadPercent, diskTag);
+            AppendGauge("thermosync_disk_used_percent", "Uso do volume em porcentagem", d.UsedPercent, diskTag);
+        }
+
+        if (s.Throttling != null)
+        {
+            AppendGauge("thermosync_throttling_cpu", "Status de Throttling da CPU (0=Normal, 1=PowerLimit, 2=Thermal)", (double)s.Throttling.CpuThrottling);
+            AppendGauge("thermosync_throttling_gpu", "Status de Throttling da GPU (0=Normal, 1=PowerLimit, 2=Thermal)", (double)s.Throttling.GpuThrottling);
+        }
 
         if (!string.IsNullOrEmpty(s.ActiveGame))
         {

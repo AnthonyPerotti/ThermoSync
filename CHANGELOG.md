@@ -1,5 +1,34 @@
 # Registro de Mudancas - ThermoSync
 
+## Versao 1.5.6
+
+### Diagnostico e Correcao da Telemetria CSV
+- Centralizado caminho de armazenamento de telemetria em `TelemetryLogger.LogDir`, unificando a gravacao em `%AppData%\ThermoSync\telemetry` e a abertura da pasta pela interface.
+- Adicionadas colunas eletricas (`CpuPowerW`, `GpuPowerW`) e diagnostico de corte (`ThrottlingStatus`) ao schema CSV dos logs diarios rotativos.
+- Adicionado indicador de arquivo ativo e contagem de amostras gravadas em tempo real na aba de Configuracoes.
+
+### Controle Termico com Histerese e Suavizacao Acustica (SYNC FAN)
+- Implementada histerese termica configuravel (padrao: 3 C) e rampa de amortecimento de desaceleracao (ramp-down) em `FanControlService.cs`, eliminando oscilacoes bruscas de rotacao (fan revving).
+- Aceleracao imediata sob aumento de temperatura preservando protecao de hardware.
+- Integracao do ajuste de histerese na interface grafica e avaliacao continua de perfil ativo no loop principal.
+
+### Eficiencia Energetica (Pontos por Watt) e Comparador de Benchmarks (SYNC BENCH)
+- Calculo integrado de consumo eletrico medio (Watts) durante benchmarks de CPU (Render e Simulacao) e GPU.
+- Exibicao da metrica de eficiencia energetica `pts/W` para avaliacao precisa de undervolt e overclock.
+- Indicador comparativo com o teste imediatamente anterior do historico exibindo delta percentual de pontuacao, delta de temperatura e delta de frequencia.
+
+### Watchdog de TDR para Estresse de GPU e VRAM (SYNC OC)
+- Monitoramento de integridade e recuperacao de driver via DirectX TDR (`DeviceRemovedReason`) em `GpuVramBench` e `GpuBurn`.
+- Registro do status de integridade do driver de video no relatorio de estabilidade.
+
+### Homelab: Metricas S.M.A.R.T. no Prometheus e Dashboard Grafana
+- Exportacao de metricas de armazenamento no Prometheus: `thermosync_disk_temperature_celsius`, `thermosync_disk_health_percentage` e `thermosync_disk_load_percent`.
+- Adicionado arquivo de provisionamento `homelab/grafana_dashboard.json` com gauges termicos, metricas de potencia integrada, clocks e status de throttling.
+
+### Alternancia Automatica de Plano de Energia para Jogos (SYNC GAMES)
+- Criado `PowerPlanManager.cs` com chamadas nativas Win32 PowrProf (`PowerSetActiveScheme` e `PowerGetActiveScheme`), eliminando spawning de processos externos.
+- Alternancia automatica para Alto Desempenho ao iniciar jogos pelo launcher ou ao detectar jogos em primeiro plano pelo `FrameMonitor`, restaurando o plano anterior ao encerrar.
+
 ## Versao 1.5.5
 
 - Corrigido comportamento de inicializacao: a janela nao minimiza mais sozinha apos o carregamento dos sensores.

@@ -136,21 +136,14 @@ public static class GameLauncher
     /// </summary>
     public static async Task RunAsync(LibGame g, GameProfile p, Action<string> status, Action<string> learnedExe, CancellationToken ct)
     {
-        string? oldPlan = null;
+        bool boostedPower = false;
         var helpers = new List<(Process Proc, bool Close)>();
         try
         {
             status("Aplicando o perfil…");
             if (p.HighPerfPlan)
             {
-                oldPlan = ActiveScheme();
-                if (!string.Equals(oldPlan, HighPerformance, StringComparison.OrdinalIgnoreCase))
-                {
-                    if (!PowerCfg("/list").Contains(HighPerformance, StringComparison.OrdinalIgnoreCase))
-                        PowerCfg($"-duplicatescheme {HighPerformance} {HighPerformance}");
-                    PowerCfg($"/setactive {HighPerformance}");
-                }
-                else oldPlan = null; // já estava em Alto desempenho: nada a restaurar
+                boostedPower = PowerPlanManager.EnterHighPerformanceMode();
             }
 
             string? exe = p.ExePath ?? g.ExePath ?? FindMainExe(g.InstallDir, g.Name);
@@ -218,7 +211,7 @@ public static class GameLauncher
         catch (Exception ex) { status("Falhou: " + ex.Message); }
         finally
         {
-            if (oldPlan != null) { try { PowerCfg($"/setactive {oldPlan}"); } catch { } }
+            if (boostedPower) { PowerPlanManager.RestorePreviousMode(); }
             foreach (var (proc, close) in helpers)
             {
                 if (!close) continue;

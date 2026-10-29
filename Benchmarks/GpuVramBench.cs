@@ -21,6 +21,7 @@ public sealed class GpuVramResult
     public long BitErrors { get; init; }
     public double DurationSeconds { get; init; }
     public double BandwidthGbps { get; init; }
+    public bool TdrDetected { get; init; }
     public string? ErrorMessage { get; init; }
 }
 
@@ -46,6 +47,7 @@ public sealed class GpuVramBench
     public string? Error { get; private set; }
     public string AdapterUsed { get; private set; } = "";
     public int AllocatedMb { get; private set; }
+    public bool TdrDetected { get; private set; }
 
     public void Start(GpuVramSettings settings, Action<GpuVramResult>? onComplete = null)
     {
@@ -138,6 +140,13 @@ public sealed class GpuVramBench
 
             while (!_stop)
             {
+                if (device.DeviceRemovedReason.Failure)
+                {
+                    TdrDetected = true;
+                    Error = $"TDR detectado (Driver Reset: {device.DeviceRemovedReason})";
+                    break;
+                }
+
                 foreach (uint pat in patterns)
                 {
                     if (_stop) break;
@@ -208,7 +217,8 @@ public sealed class GpuVramBench
                 Passes = Passes,
                 BitErrors = Errors,
                 DurationSeconds = sw.Elapsed.TotalSeconds,
-                BandwidthGbps = BandwidthGbps
+                BandwidthGbps = BandwidthGbps,
+                TdrDetected = TdrDetected
             };
         }
         catch (Exception ex)
@@ -222,6 +232,7 @@ public sealed class GpuVramBench
                 BitErrors = Errors,
                 DurationSeconds = sw.Elapsed.TotalSeconds,
                 BandwidthGbps = BandwidthGbps,
+                TdrDetected = TdrDetected,
                 ErrorMessage = ex.Message
             };
         }

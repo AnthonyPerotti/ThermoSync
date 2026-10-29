@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
@@ -55,6 +55,7 @@ public partial class MainWindow : Window
     // Gargalo + overlay
     public sealed record MeterItem(string Label, string Value, double Fraction, string? Score = null, string? Detail = null);
     private readonly FrameMonitor _frames = new();
+    private bool _autoGamePowerPlanActive;
     private BottleneckSession? _bnSession;
     private double _balanceRatio = 1;
     private OverlayWindow? _overlay;
@@ -142,7 +143,18 @@ public partial class MainWindow : Window
             if (PageBench.IsVisible) UpdateBenchLive();
             if (PageOptimize.IsVisible) UpdateRamStatus();
             if (PageFans.IsVisible) UpdateFansLive();
+            if (PageSettings.IsVisible) UpdateTelemetryStatusUi();
+            if (!_settings.FanMode.Equals("Auto", StringComparison.OrdinalIgnoreCase)) ApplyCurrentFanProfile();
             CheckAlerts();
+            string? activeFgGame = _frames.Running ? _frames.GetForegroundStats()?.ProcessName : null;
+            if (!string.IsNullOrEmpty(activeFgGame))
+            {
+                if (!_autoGamePowerPlanActive) { PowerPlanManager.EnterHighPerformanceMode(); _autoGamePowerPlanActive = true; }
+            }
+            else if (_autoGamePowerPlanActive)
+            {
+                PowerPlanManager.RestorePreviousMode(); _autoGamePowerPlanActive = false;
+            }
             UpdateTrayTooltip();
 
             if (_telemetryTick++ % Math.Max(1, _settings.TelemetryLogIntervalSec) == 0 && _settings.TelemetryLogEnabled)
@@ -152,7 +164,46 @@ public partial class MainWindow : Window
                 double ramTotalGb = totalR / 1073741824.0;
                 double ramPct = totalR > 0 ? ((double)(totalR - availR) / totalR) * 100.0 : 0;
                 string? game = _frames.Running ? _frames.GetForegroundStats()?.ProcessName : null;
-                _telemetryLogger.LogSample(DateTime.Now, _monitor.CpuTemperature, _monitor.CpuLoad, CpuClockAvg(), MainGpuTemp(), GetGpuHotspot(), MainGpuLoad(), MainGpuClock(), ramUsedGb, ramTotalGb, ramPct, game);
+
+                double? vramUsedGb = null;
+                double? vramTotalGb = null;
+                if (_gpus.Count > 0)
+                {
+                    var g = _gpus[0];
+                    if (g.VramBytes > 0) vramTotalGb = (double)g.VramBytes / (1024.0 * 1024.0 * 1024.0);
+                    var vramUsedRow = _monitor.Rows.FirstOrDefault(r => r.Hardware == g.Name && r.Type == SensorType.SmallData && r.Name.Contains("Memory Used"));
+                    if (vramUsedRow?.RawValue is float vmb) vramUsedGb = vmb / 1024.0;
+                }
+
+                var diskRows = _monitor.Rows.Where(r => r.HardwareType == HardwareType.Storage).ToList();
+                float? diskTemp = diskRows.Where(r => r.Type == SensorType.Temperature).Max(r => (float?)r.RawValue);
+                float? diskLoad = diskRows.Where(r => r.Type == SensorType.Load).Max(r => (float?)r.RawValue);
+
+                IntPtr nvmlH = _gpus.Count > 0 ? _gpus[0].NvmlHandle : IntPtr.Zero;
+                var throttling = ThrottlingDetector.Evaluate(_monitor.CpuTemperature, _monitor.CpuLoad, null, MainGpuTemp(), (float?)GetGpuHotspot(), (float?)MainGpuLoad(), MainGpuPower(), nvmlH);
+                string? throttlingDesc = throttling.IsThrottling ? throttling.ShortDescription : "Normal";
+
+                _telemetryLogger.LogSample(
+                    DateTime.Now,
+                    _monitor.CpuTemperature,
+                    _monitor.CpuLoad,
+                    CpuClockAvg(),
+                    _monitor.CpuPower,
+                    MainGpuTemp(),
+                    GetGpuHotspot(),
+                    MainGpuLoad(),
+                    MainGpuClock(),
+                    MainGpuPower(),
+                    vramUsedGb,
+                    vramTotalGb,
+                    ramUsedGb,
+                    ramTotalGb,
+                    ramPct,
+                    diskTemp,
+                    diskLoad,
+                    throttlingDesc,
+                    game
+                );
             }
         };
         _timer.Start();
@@ -201,6 +252,7 @@ public partial class MainWindow : Window
             _homelab.Dispose();
             _launchCts?.Cancel();
             _monitor.Dispose();
+            PowerPlanManager.ResetOnShutdown();
         };
     }
 
@@ -1008,8 +1060,19 @@ try {
         BenchIdle.Visibility = Visibility.Collapsed;
         BenchMt.Text = BenchSt.Text = "—";
         BenchRatio.Text = "";
+        BenchEfficiency.Text = "—";
+        BenchDelta.Text = "";
         _benchStart = DateTime.Now;
-        _benchTimer ??= new DispatcherTimer(TimeSpan.FromMilliseconds(100), DispatcherPriority.Render, (_, _) => UpdateBenchView(), Dispatcher);
+        var cpuPowerSamples = new List<float>();
+        var cpuTempSamples = new List<float>();
+        var cpuClockSamples = new List<float>();
+        _benchTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(200), DispatcherPriority.Render, (_, _) =>
+        {
+            UpdateBenchView();
+            if (_monitor.CpuPower is float p && p > 5) cpuPowerSamples.Add(p);
+            if (_monitor.CpuTemperature is float t && t > 0) cpuTempSamples.Add(t);
+            if (CpuClockAvg() is float clk && clk > 0) cpuClockSamples.Add(clk);
+        }, Dispatcher);
         _benchTimer.Start();
 
         double? mt = null, st = null;
@@ -1052,7 +1115,55 @@ try {
             BenchRatio.Text = $"Multi ÷ single: {m / s:0.0}x com {threads} threads " +
                               $"({Environment.ProcessorCount / 2} núcleos com SMT costumam render 8–12x).";
 
-        _settings.BenchRuns.Insert(0, new BenchRun(DateTime.Now, mt, st, sustained, GameCatalog.ShortCpuName(_cpuName)));
+        double avgPower = cpuPowerSamples.Count > 0 ? cpuPowerSamples.Average() : (_monitor.CpuPower ?? 0);
+        double? primaryScore = mt ?? st;
+        if (primaryScore.HasValue && avgPower > 5)
+        {
+            double eff = primaryScore.Value / avgPower;
+            BenchEfficiency.Text = $"{eff:0.#}";
+        }
+        else
+        {
+            BenchEfficiency.Text = "—";
+        }
+
+        double? effVal = (primaryScore.HasValue && avgPower > 5) ? primaryScore.Value / avgPower : null;
+        double peakTemp = cpuTempSamples.Count > 0 ? cpuTempSamples.Max() : (_monitor.CpuTemperature ?? 0);
+        double avgClock = cpuClockSamples.Count > 0 ? cpuClockSamples.Average() : (CpuClockAvg() ?? 0);
+        var prevRun = _settings.BenchRuns.FirstOrDefault();
+        if (prevRun != null && primaryScore.HasValue)
+        {
+            double? prevScore = mode == "st" ? prevRun.Single : prevRun.Multi;
+            if (prevScore.HasValue && prevScore.Value > 0)
+            {
+                double deltaPct = ((primaryScore.Value - prevScore.Value) / prevScore.Value) * 100.0;
+                string signal = deltaPct >= 0 ? "+" : "";
+                string deltaMsg = $"Variação vs anterior: {signal}{deltaPct:0.0}% pts (anterior: {prevScore.Value:N0})";
+                if (prevRun.PeakTempC.HasValue && peakTemp > 0)
+                {
+                    double dTemp = peakTemp - prevRun.PeakTempC.Value;
+                    deltaMsg += $" · Δ {(dTemp >= 0 ? "+" : "")}{dTemp:0.0} °C";
+                }
+                if (prevRun.AvgClockMhz.HasValue && avgClock > 0)
+                {
+                    double dClock = avgClock - prevRun.AvgClockMhz.Value;
+                    deltaMsg += $" · Δ {(dClock >= 0 ? "+" : "")}{dClock:0} MHz";
+                }
+                BenchDelta.Text = deltaMsg;
+            }
+        }
+
+        _settings.BenchRuns.Insert(0, new BenchRun(
+            DateTime.Now,
+            mt,
+            st,
+            sustained,
+            GameCatalog.ShortCpuName(_cpuName),
+            effVal,
+            avgPower > 5 ? avgPower : null,
+            peakTemp > 0 ? peakTemp : null,
+            avgClock > 0 ? avgClock : null
+        ));
         AddEvent("", "SYNC BENCH", "Render de CPU", mt is double mte ? $"{mte:N0} pts" : st is double ste ? $"{ste:N0} pts" : "");
         if (_settings.BenchRuns.Count > 10) _settings.BenchRuns.RemoveRange(10, _settings.BenchRuns.Count - 10);
         _settings.Save();
@@ -1549,6 +1660,7 @@ try {
         GbResult.ItemsSource = null;
         UpdateGpuBenchLive();
 
+        var gpuPowerSamples = new List<float>();
         var bench = _gpuBench;
         var timer = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Normal, (_, _) =>
         {
@@ -1556,6 +1668,7 @@ try {
             GbProgress.ScaleX = bench.Progress;
             GbStatus.Text = $"Rodando · {size[0]}x{size[1]} · {bench.Progress:P0}";
             GbGpuNow.Text = MainGpuTemp() is float gt ? $"{gt:0} °C" : "—";
+            if (MainGpuPower() is float gw && gw > 5) gpuPowerSamples.Add(gw);
             UpdateGpuBenchLive();
         }, Dispatcher);
         timer.Start();
@@ -1578,15 +1691,28 @@ try {
             return;
         }
         GbStatus.Text = $"Concluído · {r.Adapter}";
-        GbResult.ItemsSource = new[]
+        double avgGpuW = gpuPowerSamples.Count > 0 ? gpuPowerSamples.Average() : (MainGpuPower() ?? 0);
+        double? ptsPerW = avgGpuW > 5 ? r.Score / avgGpuW : null;
+        var prevGpu = _settings.BenchRecords.FirstOrDefault(x => x.Test == "gpu");
+        string compStr = "";
+        if (prevGpu != null && prevGpu.Score > 0)
+        {
+            double dScore = ((r.Score - prevGpu.Score) / prevGpu.Score) * 100.0;
+            compStr = $"{(dScore >= 0 ? "+" : "")}{dScore:0.0}% pts vs anterior ({prevGpu.Score:N0} pts)";
+        }
+
+        var resultRows = new List<KeyValuePair<string, string>>
         {
             new KeyValuePair<string, string>("Nota", $"{r.Score:N0} pts"),
             new KeyValuePair<string, string>("FPS medio", $"{r.AvgFps:0.0}"),
             new KeyValuePair<string, string>("1% low", $"{r.Low1Fps:0.0}"),
-            new KeyValuePair<string, string>("Resolucao", $"{r.Width}x{r.Height}"),
-            new KeyValuePair<string, string>("Frames", $"{r.Frames:N0}"),
         };
-        SaveBenchRecord("gpu", r.Score, $"{r.Score:N0} pts · {r.AvgFps:0} FPS · {r.Height}p");
+        if (ptsPerW.HasValue) resultRows.Add(new KeyValuePair<string, string>("Eficiência", $"{ptsPerW.Value:0.#} pts/W ({avgGpuW:0} W médio)"));
+        if (!string.IsNullOrEmpty(compStr)) resultRows.Add(new KeyValuePair<string, string>("Comparativo", compStr));
+        resultRows.Add(new KeyValuePair<string, string>("Resolucao", $"{r.Width}x{r.Height}"));
+        resultRows.Add(new KeyValuePair<string, string>("Frames", $"{r.Frames:N0}"));
+        GbResult.ItemsSource = resultRows;
+        SaveBenchRecord("gpu", r.Score, $"{r.Score:N0} pts · {r.AvgFps:0} FPS · {r.Height}p" + (ptsPerW.HasValue ? $" · {ptsPerW.Value:0.#} pts/W" : ""));
     }
 
     // ----- Simulação de jogo (CPU) -----
@@ -1605,6 +1731,7 @@ try {
         var sim = new GameSimBench();
         _gameBenchCts = new CancellationTokenSource();
         var ct = _gameBenchCts.Token;
+        var simPowerSamples = new List<float>();
         SetGameBenchRunning(BtnSimBench, true);
         SimResult.ItemsSource = null;
         SimStatus.Text = "Aquecendo (2 s)…";
@@ -1615,6 +1742,7 @@ try {
             SimProgress.ScaleX = sim.Progress;
             if (sim.FramesDone > 0) SimStatus.Text = $"Simulando · {sim.Progress:P0}";
             SimFpsNow.Text = sim.CurrentFps > 0 ? $"{sim.CurrentFps:0} FPS" : "";
+            if (_monitor.CpuPower is float cp && cp > 5) simPowerSamples.Add(cp);
             UpdateSimBenchLive();
         }, Dispatcher);
         timer.Start();
@@ -1628,15 +1756,29 @@ try {
         if (cancelled) { SimStatus.Text = "Cancelado"; return; }
 
         SimStatus.Text = $"Concluído · {r.Frames:N0} frames em {r.Seconds:0} s";
-        SimResult.ItemsSource = new[]
+        double avgSimW = simPowerSamples.Count > 0 ? simPowerSamples.Average() : (_monitor.CpuPower ?? 0);
+        double? ptsPerW = avgSimW > 5 ? r.Score / avgSimW : null;
+        var prevSim = _settings.BenchRecords.FirstOrDefault(x => x.Test == "sim");
+        string compStr = "";
+        if (prevSim != null && prevSim.Score > 0)
+        {
+            double dScore = ((r.Score - prevSim.Score) / prevSim.Score) * 100.0;
+            compStr = $"{(dScore >= 0 ? "+" : "")}{dScore:0.0}% pts vs anterior ({prevSim.Score:0} FPS)";
+        }
+
+        var simResultRows = new List<KeyValuePair<string, string>>
         {
             new KeyValuePair<string, string>("FPS médio (nota)", $"{r.AvgFps:0}"),
             new KeyValuePair<string, string>("1% low", $"{r.Low1Fps:0}"),
-            new KeyValuePair<string, string>("Thread principal", $"{r.MainThreadMs:0.00} ms/frame"),
-            new KeyValuePair<string, string>("Física + IA (paralelo)", $"{r.ParallelMs:0.00} ms/frame"),
-            new KeyValuePair<string, string>("Unidades", $"{GameSimBench.Entities:N0}"),
         };
-        SaveBenchRecord("sim", r.Score, $"{r.AvgFps:0} FPS · 1% low {r.Low1Fps:0}");
+        if (ptsPerW.HasValue) simResultRows.Add(new KeyValuePair<string, string>("Eficiência", $"{ptsPerW.Value:0.#} pts/W ({avgSimW:0} W médio)"));
+        if (!string.IsNullOrEmpty(compStr)) simResultRows.Add(new KeyValuePair<string, string>("Comparativo", compStr));
+        simResultRows.Add(new KeyValuePair<string, string>("Thread principal", $"{r.MainThreadMs:0.00} ms/frame"));
+        simResultRows.Add(new KeyValuePair<string, string>("Física + IA (paralelo)", $"{r.ParallelMs:0.00} ms/frame"));
+        simResultRows.Add(new KeyValuePair<string, string>("Unidades", $"{GameSimBench.Entities:N0}"));
+
+        SimResult.ItemsSource = simResultRows;
+        SaveBenchRecord("sim", r.Score, $"{r.AvgFps:0} FPS · 1% low {r.Low1Fps:0}" + (ptsPerW.HasValue ? $" · {ptsPerW.Value:0.#} pts/W" : ""));
     }
 
     /// <summary>Vista de cima da batalha: time A em branco, time B em cinza.</summary>
@@ -2195,6 +2337,26 @@ try {
             ftMs = fs.FrameTimeMs;
         }
 
+        var disks = new List<DiskTelemetry>();
+        var storageHardware = _monitor.Rows.Where(r => r.HardwareType == HardwareType.Storage)
+                                           .Select(r => r.Hardware).Distinct().ToList();
+        foreach (var diskName in storageHardware)
+        {
+            var dRows = _monitor.Rows.Where(r => r.Hardware == diskName).ToList();
+            float? dTemp = dRows.FirstOrDefault(r => r.Type == SensorType.Temperature)?.RawValue;
+            float? dLoad = dRows.FirstOrDefault(r => r.Type == SensorType.Load)?.RawValue;
+            float? dUsed = dRows.FirstOrDefault(r => r.Type == SensorType.Data && r.Name.Contains("Used", StringComparison.OrdinalIgnoreCase))?.RawValue;
+            float? dHealth = dRows.FirstOrDefault(r => r.Type == SensorType.Level && (r.Name.Contains("Life", StringComparison.OrdinalIgnoreCase) || r.Name.Contains("Health", StringComparison.OrdinalIgnoreCase)))?.RawValue;
+            disks.Add(new DiskTelemetry
+            {
+                Name = diskName,
+                TemperatureCelsius = dTemp,
+                HealthPercentage = dHealth ?? 100.0,
+                LoadPercent = dLoad,
+                UsedPercent = dUsed
+            });
+        }
+
         IntPtr nvmlH = _gpus.Count > 0 ? _gpus[0].NvmlHandle : IntPtr.Zero;
         var throttling = ThrottlingDetector.Evaluate(cpuTemp, cpuLoad, null, gTemp, (float?)gHotspot, (float?)gLoad, gPower, nvmlH);
 
@@ -2215,6 +2377,7 @@ try {
             Fps = fps,
             FrametimeMs = ftMs,
             Throttling = throttling,
+            Disks = disks
         };
     }
 }

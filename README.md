@@ -11,11 +11,12 @@ O software divide suas funcoes em modulos especializados:
 - **Identificacao de Sistema (`Hardware/SystemInfoCollector.cs`):** Coleta de topologia de hardware via Windows Management Instrumentation (WMI), detalhando modulos de memoria RAM (SPD, fabricante, frequencia configurada e part number) e placa-mae.
 - **Especificacoes Avancadas de GPU (`Hardware/GpuInfoCollector.cs`, `Hardware/GpuSpecDb.cs`, `Hardware/Nvml.cs`):** Leitura de limites de potencia, clocks nominais, estados de energia (P-states), limitadores de desempenho (PerfCap), contadores NVENC/NVDEC e barramento PCIe via NVIDIA Management Library (NVML) e DXGI.
 - **Armazenamento e S.M.A.R.T. (`Hardware/DiskHealth.cs`, `Models/DriveMap.cs`):** Leitura de contadores de confiabilidade de disco (MSFT_StorageReliabilityCounter), desgaste percentual de SSDs, setores realocados, correlacao entre unidades logicas e discos fisicos e exibicao detalhada de multiplos discos no painel de Visao Geral.
-- **Historico Continuo em CSV (`Services/TelemetryLogger.cs`):** Gravacao assincrona em segundo plano da telemetria em arquivos CSV rotativos diarios em `%AppData%\ThermoSync\telemetry\`. Retencao automatica dos ultimos 7 dias.
+- **Historico Continuo em CSV (`Services/TelemetryLogger.cs`):** Gravacao assincrona em segundo plano da telemetria em arquivos CSV rotativos diarios em `%AppData%\ThermoSync\telemetry\`. O schema inclui potencias de CPU/GPU em Watts, estados de throttling, temperaturas de hotspots e discos. Retencao automatica dos ultimos 7 dias.
 
 ### 2. Controle Ativo de Ventoinhas (SYNC FAN)
 - **Gerenciamento PWM (`Services/FanControlService.cs`):** Controle direto de curva e velocidade de ventiladores de placa-mae e GPU suportados via interfaces `IControl`.
 - **Perfis Termicos Dinamicos:** Modos Automatico, Silencioso (Quiet), Equilibrado (Balanced), Desempenho (Performance), Manual (Fixo com slider percentual) e Curva Customizada.
+- **Histerese Termica e Amortecimento Acustico:** Histerese configuravel (padrao 3 C) e rampa suave de desaceleracao (ramp-down amortecido) para evitar aceleracoes bruscas (fan revving) em limiares de temperatura, com resposta imediata para subidas termicas.
 - **Curva Customizada via Software:** Calibracao de 4 pontos termicos PWM (35 C a 85 C) com selecao de sensor de referencia (CPU, GPU ou o maior entre ambos) e interpolacao linear continua.
 - **Perfis Vinculados a Jogos (Per-Game Profiles):** Aplicacao automatica de curva de refrigeracao especifica ao iniciar cada jogo no launcher e restauracao automatica do perfil padrao ao encerrar a partida.
 
@@ -24,13 +25,15 @@ O software divide suas funcoes em modulos especializados:
 - **Cena Grafica 3D (`Benchmarks/GpuGameBench.cs`):** Renderizacao em tempo real via Direct3D 11 com instanciamento massivo de geometria, mapas de sombra em alta resolucao, iluminacao solar de alto contraste, leito de rio com agua procedural e mapeamento de tons HDR.
 - **Ray Tracing DXR 1.1 (`Benchmarks/GpuRtBench.cs`):** Carga computacional em Direct3D 12 utilizando raios inline em compute shaders diretamente nas unidades aceleradoras de hardware (RT Cores).
 - **Simulacao de Fisica (`Benchmarks/GameSimBench.cs`):** Simulacao concorrente com mais de 30.000 entidades ativas para teste de escalabilidade e sincronizacao de threads de processador.
+- **Eficiencia Energetica (pts/W) e Comparador de Deltas:** Integracao de consumo medio em Watts durante o teste para calculo da relacao pontos por Watt (pts/W), comparando variacoes percentuais de pontuacao, temperatura de pico e frequencia de clock em relacao ao historico previo.
 - **I/O e Memoria (`Benchmarks/DiskBench.cs`, `Benchmarks/MemoryBench.cs`):** Testes com perfis dedicados (Completo, Apenas Sequencial e Apenas 4K & Latencia) sem cache do Windows (`FILE_FLAG_NO_BUFFERING`), alem de medicao de IOPS e latencia de resposta em microssegundos.
-- **Estresse de VRAM Dedicado (`Benchmarks/GpuVramBench.cs`):** Memtest de memoria de video GDDR via Direct3D 11, gravando e validando padroes de tensao (0x55555555, 0xAAAAAAAA, walking bits e PRNG) com deteccao e contagem de bits corrompidos.
+- **Estresse de VRAM Dedicado e Watchdog de TDR (`Benchmarks/GpuVramBench.cs`, `Benchmarks/GpuBurn.cs`):** Memtest de memoria de video GDDR via Direct3D 11 com deteccao ativa de recuperacoes de driver pelo Windows (TDR - Timeout Detection and Recovery via DeviceRemovedReason) e contagem de bits corrompidos.
 - **Deteccao de Throttling (`Hardware/ThrottlingDetector.cs`):** Avaliacao em tempo real de limites termicos (TjMax, Thermal Slowdown) e de consumo (Power Limit, Power Brake) com badges visuais nos dashboards, nos benchmarks e no teste de estresse.
 - **Painel Durante o Teste (Telemetria Ativa):** Monitoramento em tempo real do componente sob estresse durante a execucao do benchmark (GPU, CPU, memoria RAM e disco selecionado).
 
-### 4. Telemetria em Jogos e Overlay
+### 4. Telemetria em Jogos, Gerenciamento de Energia e Overlay
 - **Captura ETW (`Hardware/FrameMonitor.cs`):** Coleta de tempos de apresentacao de quadros (frametime) via provedores do Event Tracing for Windows (DXGI e D3D9), eliminando a necessidade de injecao de bibliotecas dinamicas (DLL injection) em espaco de usuario do processo-alvo.
+- **Alternancia Dinamica de Plano de Energia (`Utils/PowerPlanManager.cs`):** Comutacao sem latencia para o plano de Alto Desempenho do Windows via APIs nativas de `powrprof.dll` (`PowerSetActiveScheme`), disparada ao iniciar jogos pelo launcher ou por deteccao automatica em primeiro plano pelo `FrameMonitor`, com restauracao confiavel do plano prévio.
 - **Interface de Overlay (`UI/OverlayWindow.xaml`):** Janela com renderizacao transparente com atributos WS_EX_TRANSPARENT e TOPMOST adaptativo para sobreposicao em aplicacoes em modo de tela cheia sem bordas.
 - **Estimativa e Diagnostico de Gargalo (`Hardware/BottleneckAnalyzer.cs`, `Utils/GameCatalog.cs`):** Analise comparativa de balanco entre capacidade computacional de CPU e GPU, monitoramento de tempos ociosos e deteccao de estrangulamento termico.
 
@@ -43,7 +46,8 @@ O software divide suas funcoes em modulos especializados:
 
 ### 6. Integracao Homelab e Automacao (`Services/HomelabService.cs`, `Services/AlertWebhookService.cs`, `Services/NetworkTest.cs`)
 - **API REST e Telemetria HTTP (`Services/HomelabService.cs`):** Endpoints HTTP internos em `/api/telemetry` (payload JSON com telemetria completa, dados de throttling e jogos) e `/api/health`, com cabecalhos CORS liberados para integracao com navegadores e dashboards locais.
-- **Exportador Prometheus (/metrics):** Servidor HTTP interno assincrono expondo telemetria completa em formato OpenMetrics na porta 9182 (temperaturas, consumo eletrico, clock, uso de VRAM/RAM, saude de disco e FPS de jogos) para Grafana.
+- **Exportador Prometheus (/metrics):** Servidor HTTP interno assincrono expondo telemetria completa em formato OpenMetrics na porta 9182 (temperaturas, consumo eletrico em Watts, clocks, uso de VRAM/RAM, saude S.M.A.R.T. e carga dos discos, estados de throttling e FPS de jogos).
+- **Dashboard Grafana Provisionado (`homelab/grafana_dashboard.json`):** Painel Grafana pronto para importacao com gauges termicos de CPU, GPU, Hotspot e unidades de disco, integracao de potencia em Watts, alertas visuais de corte por temperatura ou energia e frequencias de operacao.
 - **Publicador MQTT:** Cliente TCP leve compativel com MQTT 3.1.1 para envio de telemetria periodica ao broker da rede local (Mosquitto), com suporte a Home Assistant MQTT Auto-Discovery.
 - **Webhooks de Alerta Critico (`AlertWebhookService.cs`):** Notificacao remota imediata para Discord, Gotify (ZimaOS/Docker) e Telegram quando limites de CPU, GPU, Hotspot ou RAM forem ultrapassados, com controle de intervalo (cooldown).
 - **Diagnostico de Rede Homelab (SYNC NET - `NetworkTest.cs`):** Medicoes de latencia ICMP, jitter, deteccao de Path MTU (padrao 1500 vs Jumbo Frames 9000) e teste de vazao TCP via protocolo compativel com iPerf3.
@@ -97,6 +101,7 @@ ThermoSync/
 ├── Benchmarks/              # Motores de teste sinteticos, graficos e de estresse
 ├── Drivers/                 # Pacotes de drivers de comunicacao serial assinados
 ├── Hardware/                # Camada de baixo nivel, interop nativo e P/Invoke
+├── homelab/                 # Provisionamento de telemetria e dashboard Grafana
 ├── Models/                  # Entidades de dados, DTOs e configuracoes do usuario
 ├── Services/                # Servicos de segundo plano, telemetria, ventoinhas e rede
 ├── UI/                      # Janelas secundarias de overlay, toasts e dicionario de temas

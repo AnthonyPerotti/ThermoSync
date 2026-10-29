@@ -16,6 +16,21 @@ public sealed record ThrottlingStatus(
 {
     public bool HasThermal => CpuThrottling == ThrottlingType.ThermalThrottling || GpuThrottling == ThrottlingType.ThermalThrottling;
     public bool HasPower => CpuThrottling == ThrottlingType.PowerLimit || GpuThrottling == ThrottlingType.PowerLimit;
+    public bool IsThrottling => CpuThrottling != ThrottlingType.None || GpuThrottling != ThrottlingType.None;
+
+    public string ShortDescription
+    {
+        get
+        {
+            if (CpuThrottling != ThrottlingType.None && GpuThrottling != ThrottlingType.None)
+                return $"CPU: {CpuReason ?? CpuThrottling.ToString()} | GPU: {GpuReason ?? GpuThrottling.ToString()}";
+            if (CpuThrottling != ThrottlingType.None)
+                return CpuReason ?? CpuThrottling.ToString();
+            if (GpuThrottling != ThrottlingType.None)
+                return GpuReason ?? GpuThrottling.ToString();
+            return "Normal";
+        }
+    }
 
     public string BadgeText => HasThermal
         ? "Thermal Throttling Detectado"

@@ -1317,8 +1317,11 @@
                                 </TextBlock>
                                 <WrapPanel>
                                     <CheckBox x:Name="ChkTelemetryLog" Content="Ativar gravação contínua de logs CSV" VerticalAlignment="Center" Margin="0,0,20,6" Click="ChkTelemetryLog_Click"/>
-                                    <Button x:Name="BtnOpenLogsFolder" Style="{StaticResource OutlineButton}" Content="ABRIR PASTA DE LOGS" Padding="14,6" Margin="0,0,0,6" Click="BtnOpenLogsFolder_Click"/>
+                                    <Button x:Name="BtnOpenLogsFolder" Style="{StaticResource OutlineButton}" Content="ABRIR PASTA DE LOGS" Padding="14,6" Margin="0,0,10,6" Click="BtnOpenLogsFolder_Click"/>
+                                    <Button x:Name="BtnAnalyzeLogs" Style="{StaticResource OutlineButton}" Content="ANALISAR LOGS DE HOJE" Padding="14,6" Margin="0,0,0,6" Click="BtnAnalyzeLogs_Click"/>
                                 </WrapPanel>
+                                <TextBlock x:Name="TxtTelemetryAnalysisResult" Text="" Foreground="{DynamicResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                <TextBlock x:Name="TxtTelemetryStatus" Text="Nenhum arquivo ativo." Foreground="{DynamicResource Faint}" FontSize="11" Margin="0,6,0,0"/>
                             </StackPanel>
                         </Border>
 
@@ -2038,6 +2041,14 @@
                                             </StackPanel>
                                         </Grid>
                                         <TextBlock x:Name="BenchRatio" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                                        <Grid Margin="0,6,0,0">
+                                            <TextBlock Text="Eficiência" Foreground="{DynamicResource Muted}" VerticalAlignment="Bottom" Margin="0,0,0,3"/>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                <TextBlock x:Name="BenchEfficiency" Text="—" FontFamily="{StaticResource Mono}" FontSize="18"/>
+                                                <TextBlock Text=" pts/W" Foreground="{DynamicResource Muted}" VerticalAlignment="Bottom" Margin="0,0,0,3"/>
+                                            </StackPanel>
+                                        </Grid>
+                                        <TextBlock x:Name="BenchDelta" Foreground="{DynamicResource Muted}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </Border>
 
@@ -3426,6 +3437,10 @@
                                             <Slider x:Name="SliderCurveP4" Minimum="15" Maximum="100" Value="100" ValueChanged="SliderCurve_ValueChanged"/>
                                         </StackPanel>
                                     </UniformGrid>
+                                    <StackPanel Margin="0,8,0,0">
+                                        <TextBlock x:Name="TxtCurveHysteresis" Text="Histerese Acústica: 3 °C (Evita oscilação de aceleração/desaceleração no limiar)" FontSize="11" Foreground="{DynamicResource Muted}"/>
+                                        <Slider x:Name="SliderCurveHysteresis" Minimum="1" Maximum="6" Value="3" ValueChanged="SliderCurveHysteresis_ValueChanged"/>
+                                    </StackPanel>
                                 </StackPanel>
                             </StackPanel>
                         </Border>

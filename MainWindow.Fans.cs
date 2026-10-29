@@ -52,6 +52,7 @@ public partial class MainWindow
         SliderCurveP2.Value = _settings.FanCurveP2Pct;
         SliderCurveP3.Value = _settings.FanCurveP3Pct;
         SliderCurveP4.Value = _settings.FanCurveP4Pct;
+        SliderCurveHysteresis.Value = _settings.FanCurveHysteresis;
         UpdateCurveLabels();
         PanelFanCustom.Visibility = BtnFanCustom.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
@@ -120,6 +121,21 @@ public partial class MainWindow
         if (TxtCurveP2 != null) TxtCurveP2.Text = $"Carga Leve ({_settings.FanCurveP2Temp} °C): {_settings.FanCurveP2Pct}%";
         if (TxtCurveP3 != null) TxtCurveP3.Text = $"Carga Alta ({_settings.FanCurveP3Temp} °C): {_settings.FanCurveP3Pct}%";
         if (TxtCurveP4 != null) TxtCurveP4.Text = $"Crítico ({_settings.FanCurveP4Temp} °C): {_settings.FanCurveP4Pct}%";
+        if (TxtCurveHysteresis != null) TxtCurveHysteresis.Text = $"Histerese Acústica: {_settings.FanCurveHysteresis} °C (Evita oscilação de aceleração/desaceleração no limiar)";
+    }
+
+    private void SliderCurveHysteresis_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (SliderCurveHysteresis == null) return;
+        int val = (int)Math.Round(SliderCurveHysteresis.Value);
+        _settings.FanCurveHysteresis = Math.Clamp(val, 1, 10);
+        _settings.Save();
+        UpdateCurveLabels();
+
+        if (BtnFanCustom?.IsChecked == true)
+        {
+            ApplyCurrentFanProfile();
+        }
     }
 
     private void SliderFanManual_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -151,7 +167,16 @@ public partial class MainWindow
             ((float)_settings.FanCurveP3Temp, (float)_settings.FanCurveP3Pct),
             ((float)_settings.FanCurveP4Temp, (float)_settings.FanCurveP4Pct),
         };
-        _fans.ApplyProfile(_settings.FanMode, _settings.FanManualPct, cpuTemp, gpuTemp, _settings.FanCurveSource, customPoints);
+        _fans.ApplyProfile(
+            _settings.FanMode,
+            _settings.FanManualPct,
+            cpuTemp,
+            gpuTemp,
+            _settings.FanCurveSource,
+            customPoints,
+            _settings.FanCurveHysteresis,
+            _settings.FanRampDownPctPerSec
+        );
         UpdateFansLive();
     }
 
