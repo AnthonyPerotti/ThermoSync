@@ -1,4 +1,4 @@
-﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -15,7 +15,7 @@ public partial class OverlayWindow : Window
 {
     public string Corner { get; set; } = "TL"; // TL, TR, BL, BR
 
-    private IntPtr _hwnd, _hook;
+    private IntPtr _hwnd, _hook, _hookLocation;
     private IntPtr _monitor;                  // monitor do jogo (o da última janela ativa de outro programa)
     private readonly WinEventProc _onForeground; // guardado num campo para o GC não coletar o callback
 
@@ -33,9 +33,10 @@ public partial class OverlayWindow : Window
         // Só escuta a troca de janela ativa enquanto o overlay está na tela.
         IsVisibleChanged += (_, _) =>
         {
-            if (IsVisible && _hook == IntPtr.Zero)
+            if (IsVisible && _hook == IntPtr.Zero && _hookLocation == IntPtr.Zero)
             {
                 _hook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, _onForeground, 0, 0, WINEVENT_OUTOFCONTEXT);
+                _hookLocation = SetWinEventHook(EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_LOCATIONCHANGE, IntPtr.Zero, _onForeground, 0, 0, WINEVENT_OUTOFCONTEXT);
                 TrackGame(GetForegroundWindow());
                 KeepOnTop();
             }
@@ -80,9 +81,8 @@ public partial class OverlayWindow : Window
 
     private void Unhook()
     {
-        if (_hook == IntPtr.Zero) return;
-        UnhookWinEvent(_hook);
-        _hook = IntPtr.Zero;
+        if (_hook != IntPtr.Zero) { UnhookWinEvent(_hook); _hook = IntPtr.Zero; }
+        if (_hookLocation != IntPtr.Zero) { UnhookWinEvent(_hookLocation); _hookLocation = IntPtr.Zero; }
     }
 
     /// <summary>Atualiza o overlay. <paramref name="show"/> = itens escolhidos (chaves de OverlayMetrics).</summary>
@@ -144,7 +144,7 @@ public partial class OverlayWindow : Window
 
     private static readonly IntPtr HWND_TOPMOST = new(-1);
     private const uint SWP_NOSIZE = 0x1, SWP_NOACTIVATE = 0x10, SWP_NOOWNERZORDER = 0x200;
-    private const uint EVENT_SYSTEM_FOREGROUND = 0x0003, WINEVENT_OUTOFCONTEXT = 0;
+    private const uint EVENT_SYSTEM_FOREGROUND = 0x0003, EVENT_OBJECT_LOCATIONCHANGE = 0x800B, WINEVENT_OUTOFCONTEXT = 0;
     private const uint MONITOR_DEFAULTTOPRIMARY = 1, MONITOR_DEFAULTTONEAREST = 2;
 
     [StructLayout(LayoutKind.Sequential)] private struct RECT { public int Left, Top, Right, Bottom; }

@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
@@ -626,15 +626,24 @@ try {
         try
         {
             var res = await _updateService.CheckForUpdateAsync();
-            if (res.HasUpdate)
+            if (res.HasUpdate && !string.IsNullOrEmpty(res.DownloadUrl))
             {
                 Dispatcher.Invoke(() =>
                 {
+                    _pendingUpdateUrl = res.DownloadUrl;
+                    BtnUpdateAvailable.Visibility = Visibility.Visible;
+                    BtnUpdateAvailable.ToolTip = $"ThermoSync {res.RemoteVersion} disponível ({res.AssetSizeBytes / (1024.0 * 1024.0):0.0} MB)";
                     _tray?.ShowBalloon("Atualização Disponível", $"Nova versão {res.RemoteVersion} do ThermoSync disponível no GitHub!", 1);
                 });
             }
         }
         catch { }
+    }
+
+    private void BtnUpdateAvailable_Click(object sender, RoutedEventArgs e)
+    {
+        ShowPage("PageInteg");
+        TitlePage.Text = "Integração";
     }
 
     // ---------------- Sistema ----------------

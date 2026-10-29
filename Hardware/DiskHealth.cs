@@ -26,6 +26,8 @@ public sealed class DiskHealthCard
     /// <summary>Atenção, crítico e "sem dados" ganham destaque (selo preenchido); saudável fica só com contorno.</summary>
     public bool IsAlert => Verdict != DiskVerdict.Good;
     public string Reasons { get; init; } = "";
+    public double? ProjectedLifeYears { get; init; }
+    public double? DailyWriteGb { get; init; }
     public List<KeyValuePair<string, string>> Metrics { get; init; } = new();
 }
 
@@ -258,6 +260,31 @@ public static class DiskHealth
         M("Erros de escrita", r.WriteErr is long we ? $"{we:N0}" + (r.WriteErrUncorrected is long wu && wu > 0 ? $" ({wu:N0} não corrigidos)" : "") : null);
         M("Total gravado", r.WrittenGb is double wg && wg > 0 ? $"{wg:N0} GB" : null);
         M("Total lido", r.ReadGb is double rg && rg > 0 ? $"{rg:N0} GB" : null);
+
+        // SSD lifetime projection based on daily write rate and wear
+        double? projectedLifeYears = null;
+        double? dailyWriteGb = null;
+        if (isSsd && r.WrittenGb is > 0 && r.PowerOnHours is > 24)
+        {
+            double days = r.PowerOnHours.Value / 24.0;
+            dailyWriteGb = r.WrittenGb.Value / days;
+            if (r.Wear is > 0 and < 100)
+            {
+                double remainingPct = 100.0 - r.Wear.Value;
+                double pctPerDay = r.Wear.Value / days;
+                if (pctPerDay > 0)
+                {
+                    double daysRemaining = remainingPct / pctPerDay;
+                    projectedLifeYears = daysRemaining / 365.25;
+                    M("Gravação diária média", $"{dailyWriteGb:0.#} GB/dia");
+                    M("Vida útil estimada restante", projectedLifeYears > 10 ? "10+ anos" : $"{projectedLifeYears:0.#} anos ({daysRemaining:N0} dias)");
+                }
+            }
+            else
+            {
+                M("Gravação diária média", $"{dailyWriteGb:0.#} GB/dia");
+            }
+        }
         M("Falha prevista (S.M.A.R.T.)", r.PredictFail is bool pf ? (pf ? "SIM" : "Não") : null);
         M("Saúde segundo o Windows", r.Health switch { 0 => "Saudável", 1 => "Atenção", 2 => "Não saudável", _ => null });
         M("Firmware", r.Firmware.Length > 0 ? r.Firmware : null);
@@ -270,6 +297,8 @@ public static class DiskHealth
             Serial = r.Serial,
             Verdict = isUsb && !anyData ? DiskVerdict.Unknown : v,
             Reasons = string.Join(" ", reasons),
+            ProjectedLifeYears = projectedLifeYears,
+            DailyWriteGb = dailyWriteGb,
             Metrics = metrics,
         };
     }

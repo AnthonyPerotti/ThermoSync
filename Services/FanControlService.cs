@@ -13,6 +13,8 @@ public sealed class FanDeviceVm
     public bool HasControl { get; init; }
     public IControl? Control { get; init; }
     public string Mode { get; set; } = "Auto"; // Auto | Manual | Curve
+    public int StallCycleCount { get; set; }
+    public bool IsStalled { get; set; }
 }
 
 /// <summary>
@@ -35,6 +37,12 @@ public sealed class FanControlService : IDisposable
 
     public string ActiveProfile { get; private set; } = "Auto";
     public int ManualPercent { get; private set; } = 60;
+
+    /// <summary>Fires when a fan appears stalled (PWM above threshold but RPM is zero for several cycles).</summary>
+    public event Action<FanDeviceVm>? OnFanStalled;
+
+    private const int StallThresholdCycles = 5;
+    private const float StallMinPwm = 35f;
 
     public FanControlService(SensorMonitor monitor)
     {
@@ -127,6 +135,22 @@ public sealed class FanControlService : IDisposable
                         fan.Rpm = row.RawValue.Value;
                     else if (row.Type == SensorType.Control)
                         fan.ControlPercent = row.RawValue.Value;
+                }
+
+                // Stall detection: PWM commanded above threshold but RPM reads zero
+                if (fan.HasControl && fan.ControlPercent >= StallMinPwm && fan.Rpm is 0 or null)
+                {
+                    fan.StallCycleCount++;
+                    if (fan.StallCycleCount >= StallThresholdCycles && !fan.IsStalled)
+                    {
+                        fan.IsStalled = true;
+                        OnFanStalled?.Invoke(fan);
+                    }
+                }
+                else
+                {
+                    fan.StallCycleCount = 0;
+                    fan.IsStalled = false;
                 }
             }
         }

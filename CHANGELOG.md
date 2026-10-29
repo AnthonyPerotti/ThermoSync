@@ -1,5 +1,40 @@
 # Registro de Mudancas - ThermoSync
 
+## Versao 1.5.7
+
+### Inicializacao com o Windows via Task Scheduler
+- Substituicao do registro de inicializacao padrao (`HKCU\Run`) pela criacao de tarefas agendadas elevadas via `schtasks.exe` com XML schema v1.2 (`RunLevel: HighestAvailable`).
+- Resolvido o bloqueio silencioso do UAC durante o logon do Windows, garantindo que o aplicativo inicie normalmente mesmo exigindo manifesto de administrador.
+
+### Notificacao de Atualizacao no Cabecalho
+- Adicionado icone indicador de nova versao no canto superior direito da janela principal, ao lado do seletor de tema.
+- Verificacao silenciosa em segundo plano durante a inicializacao; ao detectar release mais recente no GitHub, o botao fica visivel com tooltip detalhando versao e tamanho do executavel.
+- Navegacao direta para a tela de instalacao ao clicar no icone.
+
+### Resiliencia do Overlay (OSD) e Ativacao Automatica
+- Integrado hook de eventos do sistema `EVENT_OBJECT_LOCATIONCHANGE` em `OverlayWindow.xaml.cs`, garantindo reposicionamento e elevacao imediata de z-order (`HWND_TOPMOST`) contra sobreposicoes de janelas de jogos em modo sem borda.
+- Adicionada opcao de perfil `AutoOverlay` no SYNC GAMES para ativar o overlay de telemetria automaticamente ao iniciar o jogo e restaurar o estado anterior ao encerrar.
+
+### Gerenciador de Afinidade de Processador (SYNC GAMES)
+- Criado `CpuAffinityManager.cs` utilizando `GetLogicalProcessorInformationEx` para deteccao de topologia de nucleos hibridos (P-Cores vs E-Cores) e processadores AMD dual-CCD com 3D V-Cache.
+- Suporte a perfis de afinidade por jogo: Todos os nucleos, Apenas P-Cores, CCD com V-Cache e Sem SMT (apenas nucleos fisicos).
+
+### Diagnostico de Nucleos em Falhas WHEA (SYNC OC)
+- Implementada extracao de `ProcessorAPICID` a partir do XML de eventos do log do Windows (`Microsoft-Windows-WHEA-Logger` IDs 18 e 19).
+- Mapeamento do identificador APIC para indice do nucleo de processamento, indicando quais cores apresentaram instabilidade no teste de estresse.
+
+### Watchdog de Ventoinhas Travadas (SYNC FAN)
+- Implementado monitoramento de travamento em `FanControlService.cs`: gera notificacao e evento de alerta quando a rotacao (RPM) permanece zerada sob comando de PWM igual ou superior a 35% por 5 ciclos consecutivos.
+
+### Endpoint Server-Sent Events (/api/stream)
+- Implementado endpoint HTTP `/api/stream` em `HomelabService.cs` com transmissao continua (`text/event-stream`), fornecendo snapshots de telemetria em formato JSON a cada 1 segundo para integracoes e automacoes de homelab.
+
+### Projecao de Longevidade de SSD (SYNC DISKS)
+- Calculo de taxa de gravacao media diaria (GB/dia) e projecao de vida util restante em anos com base no historico de gravacoes e desgaste S.M.A.R.T.
+
+### Relatorio de Sessao Pos-Jogo
+- Contabilizacao automatica da duracao da sessao e exibicao de resumo visual no encerramento da execucao do jogo.
+
 ## Versao 1.5.6
 
 ### Diagnostico e Correcao da Telemetria CSV

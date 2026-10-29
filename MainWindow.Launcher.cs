@@ -124,6 +124,8 @@ public partial class MainWindow
         LChkPlan.IsChecked = p.HighPerfPlan;
         LChkGpu.IsChecked = p.GpuHigh;
         LChkFso.IsChecked = p.DisableFso;
+        LChkOverlay.IsChecked = p.AutoOverlay;
+        SetChip(LAffinityPanel, p.CoreAffinity);
         SetChip(LModePanel, p.WinMode);
         SetChip(LResPanel, p.Res);
         SetChip(LHzPanel, p.Hz.ToString());
@@ -170,6 +172,8 @@ public partial class MainWindow
         _lp.HighPerfPlan = LChkPlan.IsChecked == true;
         _lp.GpuHigh = LChkGpu.IsChecked == true;
         _lp.DisableFso = LChkFso.IsChecked == true;
+        _lp.AutoOverlay = LChkOverlay.IsChecked == true;
+        _lp.CoreAffinity = CheckedTag(LAffinityPanel) ?? "all";
         _lp.WinMode = CheckedTag(LModePanel) ?? "default";
         _lp.Res = CheckedTag(LResPanel) ?? "default";
         _lp.Hz = int.TryParse(CheckedTag(LHzPanel), out int hz) ? hz : 0;
@@ -283,6 +287,14 @@ public partial class MainWindow
             _fans.ApplyProfile(p.FanProfile);
         }
 
+        bool previousOverlayState = ChkOverlay.IsChecked == true;
+        if (p.AutoOverlay && !previousOverlayState)
+        {
+            ChkOverlay.IsChecked = true;
+        }
+
+        DateTime sessionStart = DateTime.Now;
+
         try
         {
             await GameLauncher.RunAsync(g, p,
@@ -300,6 +312,11 @@ public partial class MainWindow
         }
         finally
         {
+            if (p.AutoOverlay && !previousOverlayState)
+            {
+                ChkOverlay.IsChecked = false;
+            }
+
             if (!string.IsNullOrEmpty(prevFanProfile))
             {
                 _fans.ApplyProfile(prevFanProfile);
@@ -307,6 +324,14 @@ public partial class MainWindow
             _launchCts?.Dispose();
             _launchCts = null;
             BtnPlay.Content = "JOGAR";
+
+            TimeSpan sessionDuration = DateTime.Now - sessionStart;
+            if (sessionDuration.TotalSeconds >= 10)
+            {
+                string reportMsg = $"{g.Name} encerrado · Sessão: {sessionDuration.Hours:D2}:{sessionDuration.Minutes:D2}:{sessionDuration.Seconds:D2}";
+                LStatus.Text = reportMsg;
+                _tray?.ShowBalloon("Relatório de Sessão", reportMsg);
+            }
         }
     }
 }

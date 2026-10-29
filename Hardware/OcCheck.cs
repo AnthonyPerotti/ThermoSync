@@ -1,9 +1,11 @@
-﻿using System.Diagnostics.Eventing.Reader;
+using System.Diagnostics.Eventing.Reader;
 using System.Management;
 
 namespace ThermoSync;
 
 /// <summary>Apoio da aba SYNC OC: procura erros de hardware no registro do Windows e identifica a placa-mãe.</summary>
+public sealed record WheaCoreError(int ApicId, int CoreIndex, int ErrorCount, string LastTimestamp, string ErrorType);
+
 public static class OcCheck
 {
     /// <summary>Conta erros WHEA (CPU/RAM/PCIe) e reinícios do driver de vídeo desde o instante informado.</summary>
@@ -42,6 +44,56 @@ public static class OcCheck
             }
         }
         return n;
+    }
+
+    /// <summary>Parses WHEA-Logger events to identify which CPU cores are producing errors by APIC ID.</summary>
+    public static List<WheaCoreError> IdentifyFaultyCores(DateTime since)
+    {
+        var coreErrors = new Dictionary<int, (int Count, string LastTime, string Type)>();
+        string t = since.ToUniversalTime().ToString("o");
+        try
+        {
+            string xpath = $"*[System[Provider[@Name='Microsoft-Windows-WHEA-Logger'] and TimeCreated[@SystemTime>='{t}']]]";
+            using var reader = new EventLogReader(new EventLogQuery("System", PathType.LogName, xpath) { ReverseDirection = true });
+            for (EventRecord? rec = reader.ReadEvent(); rec != null; rec = reader.ReadEvent())
+            {
+                using (rec)
+                {
+                    try
+                    {
+                        string xml = rec.ToXml();
+                        var apicMatch = System.Text.RegularExpressions.Regex.Match(xml,
+                            @"APIC\s*Id[^>]*>\s*(?:0x)?([0-9a-fA-F]+)",
+                            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                        if (!apicMatch.Success)
+                            apicMatch = System.Text.RegularExpressions.Regex.Match(xml,
+                                @"ProcessorAPICID[^>]*>\s*(?:0x)?([0-9a-fA-F]+)",
+                                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                        if (apicMatch.Success && int.TryParse(apicMatch.Groups[1].Value,
+                                System.Globalization.NumberStyles.HexNumber, null, out int apicId))
+                        {
+                            string errorType = "Machine Check";
+                            if (xml.Contains("corrected", StringComparison.OrdinalIgnoreCase)) errorType = "Corrigido";
+
+                            string time = rec.TimeCreated?.ToString("dd/MM HH:mm") ?? "";
+
+                            if (coreErrors.TryGetValue(apicId, out var existing))
+                                coreErrors[apicId] = (existing.Count + 1, time.Length > 0 ? time : existing.LastTime, errorType);
+                            else
+                                coreErrors[apicId] = (1, time, errorType);
+                        }
+                    }
+                    catch { }
+                }
+            }
+        }
+        catch { }
+
+        return coreErrors
+            .OrderByDescending(kv => kv.Value.Count)
+            .Select(kv => new WheaCoreError(kv.Key, kv.Key / 2, kv.Value.Count, kv.Value.LastTime, kv.Value.Type))
+            .ToList();
     }
 
     public static (string Maker, string Model) Motherboard()

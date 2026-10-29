@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;
@@ -12,6 +12,36 @@ namespace ThermoSync;
 public static class GameLauncher
 {
     private const string HighPerformance = "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c";
+
+    private static void ApplyAffinity(Process proc, string mode, Action<string> status)
+    {
+        if (string.IsNullOrWhiteSpace(mode) || mode.Equals("all", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        var parsed = mode.ToLowerInvariant() switch
+        {
+            "pcores" => CpuAffinityMode.PCoresOnly,
+            "ecores" => CpuAffinityMode.ECoresOnly,
+            "vcache" => CpuAffinityMode.VCacheCcd,
+            "nosmt" => CpuAffinityMode.NoSmt,
+            _ => CpuAffinityMode.All
+        };
+
+        if (parsed == CpuAffinityMode.All) return;
+
+        if (CpuAffinityManager.ApplyAffinity(proc, parsed))
+        {
+            string label = parsed switch
+            {
+                CpuAffinityMode.PCoresOnly => "P-Cores",
+                CpuAffinityMode.ECoresOnly => "E-Cores",
+                CpuAffinityMode.VCacheCcd => "CCD com V-Cache",
+                CpuAffinityMode.NoSmt => "sem SMT/HT",
+                _ => mode
+            };
+            status($"Afinidade aplicada: {label}");
+        }
+    }
 
     // ---------------- Argumentos de gráficos ----------------
 
@@ -192,6 +222,7 @@ public static class GameLauncher
                     string? real = game.MainModule?.FileName;
                     if (real != null) { learnedExe(real); }
                     game.PriorityClass = p.Priority switch { "high" => ProcessPriorityClass.High, "above" => ProcessPriorityClass.AboveNormal, _ => ProcessPriorityClass.Normal };
+                    ApplyAffinity(game, p.CoreAffinity, status);
                 }
                 catch { }
                 status($"{g.Name} em execução" + (p.Priority != "normal" ? $" · prioridade {(p.Priority == "high" ? "alta" : "acima do normal")}" : "") + ".");

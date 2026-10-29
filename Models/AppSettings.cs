@@ -43,6 +43,8 @@ public sealed class GameProfile
     public string Style { get; set; } = "source";      // source | unity | unreal
     public string Extra { get; set; } = "";
     public string FanProfile { get; set; } = "default"; // default | Quiet | Balanced | Performance | Extreme
+    public bool AutoOverlay { get; set; }
+    public string CoreAffinity { get; set; } = "all"; // all | pcores | ecores | vcache | nosmt
     public List<HelperProgram> Helpers { get; set; } = new();
 }
 

@@ -148,6 +148,8 @@
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right"
                         WindowChrome.IsHitTestVisibleInChrome="True">
+                <Button x:Name="BtnUpdateAvailable" Style="{StaticResource CaptionButton}" Content="&#xE896;" Click="BtnUpdateAvailable_Click"
+                        ToolTip="Atualização disponível" Visibility="Collapsed" Foreground="#2ECC71" FontSize="15"/>
                 <Button x:Name="BtnTheme" Style="{StaticResource CaptionButton}" Content="&#xE706;" Click="Theme_Click" ToolTip="Modo claro"/>
                 <Button Style="{StaticResource CaptionButton}" Content="&#xE921;" Click="Min_Click" ToolTip="Minimizar"/>
                 <Button x:Name="BtnMax" Style="{StaticResource CaptionButton}" Content="&#xE922;" Click="Max_Click" ToolTip="Maximizar"/>
@@ -1450,6 +1452,14 @@
                                     <CheckBox x:Name="LChkPlan" Content="Plano de energia Alto desempenho enquanto joga (volta ao normal depois)" Margin="0,0,0,10" Click="LProfile_Changed"/>
                                     <CheckBox x:Name="LChkGpu" Content="Forçar a placa de vídeo dedicada (configuração gráfica do Windows)" Margin="0,0,0,10" Click="LProfile_Changed"/>
                                     <CheckBox x:Name="LChkFso" Content="Desativar otimizações de tela cheia do Windows" Margin="0,0,0,12" Click="LProfile_Changed"/>
+                                    <CheckBox x:Name="LChkOverlay" Content="Ativar overlay de telemetria automaticamente ao iniciar o jogo" Margin="0,0,0,10" Click="LProfile_Changed"/>
+                                    <TextBlock Text="Afinidade de CPU (núcleos do processador)" Foreground="{DynamicResource Faint}" FontSize="12" Margin="0,4,0,6"/>
+                                    <WrapPanel x:Name="LAffinityPanel" Margin="0,0,0,12">
+                                        <RadioButton Style="{StaticResource Chip}" GroupName="LAffinity" Content="Todos os núcleos" Tag="all" Checked="LProfile_Changed" IsChecked="True"/>
+                                        <RadioButton Style="{StaticResource Chip}" GroupName="LAffinity" Content="P-Cores apenas" Tag="pcores" Checked="LProfile_Changed" ToolTip="Ideal para Intel híbrido (12ª-14ª ger.) evitando E-Cores"/>
+                                        <RadioButton Style="{StaticResource Chip}" GroupName="LAffinity" Content="CCD com V-Cache" Tag="vcache" Checked="LProfile_Changed" ToolTip="Ideal para Ryzen 7900X3D/7950X3D priorizando o CCD de cache 3D"/>
+                                        <RadioButton Style="{StaticResource Chip}" GroupName="LAffinity" Content="Sem SMT (físicos)" Tag="nosmt" Checked="LProfile_Changed" ToolTip="Desativa Hyperthreading/SMT para jogos competitivos sensíveis à latência"/>
+                                    </WrapPanel>
                                     <TextBlock x:Name="LExeText" Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8"/>
                                     <WrapPanel>
                                         <Button Style="{StaticResource OutlineButton}" Content="ESCOLHER O .EXE" Padding="14,8" Margin="0,0,8,0" Click="BtnPickExe_Click"/>

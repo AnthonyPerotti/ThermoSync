@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -204,13 +204,18 @@ public sealed class HomelabService : IDisposable
                 res.StatusCode = 200;
                 res.OutputStream.Write(buf, 0, buf.Length);
             }
+            else if (path.Equals("/api/stream", StringComparison.OrdinalIgnoreCase))
+            {
+                HandleSseStream(res);
+                return;
+            }
             else if (path.Equals("/api/health", StringComparison.OrdinalIgnoreCase))
             {
                 var health = new
                 {
                     status = "ok",
                     service = "ThermoSync",
-                    version = "1.5.6",
+                    version = "1.5.7",
                     timestamp = DateTime.UtcNow
                 };
                 string json = JsonSerializer.Serialize(health);
@@ -223,7 +228,7 @@ public sealed class HomelabService : IDisposable
             }
             else
             {
-                byte[] msg = Encoding.UTF8.GetBytes("ThermoSync API: /api/telemetry, /api/health, /metrics\n");
+                byte[] msg = Encoding.UTF8.GetBytes("ThermoSync API: /api/telemetry, /api/health, /api/stream, /metrics\n");
                 res.ContentType = "text/plain; charset=utf-8";
                 res.ContentLength64 = msg.Length;
                 res.StatusCode = 200;
@@ -232,6 +237,51 @@ public sealed class HomelabService : IDisposable
             res.OutputStream.Close();
         }
         catch { }
+    }
+
+    private void HandleSseStream(HttpListenerResponse res)
+    {
+        try
+        {
+            res.ContentType = "text/event-stream";
+            res.Headers.Add("Cache-Control", "no-cache");
+            res.Headers.Add("Connection", "keep-alive");
+            res.Headers.Add("X-Accel-Buffering", "no");
+            res.StatusCode = 200;
+            res.SendChunked = true;
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    using var writer = new StreamWriter(res.OutputStream, Encoding.UTF8, leaveOpen: false) { AutoFlush = true };
+                    var ct = _cts?.Token ?? CancellationToken.None;
+
+                    while (!ct.IsCancellationRequested)
+                    {
+                        var snap = _snapshotProvider();
+                        string json = JsonSerializer.Serialize(snap, new JsonSerializerOptions
+                        {
+                            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                        });
+
+                        await writer.WriteLineAsync($"data: {json}");
+                        await writer.WriteLineAsync();
+
+                        await Task.Delay(1000, ct);
+                    }
+                }
+                catch { }
+                finally
+                {
+                    try { res.OutputStream.Close(); } catch { }
+                }
+            });
+        }
+        catch
+        {
+            try { res.OutputStream.Close(); } catch { }
+        }
     }
 
     private static string FormatPrometheus(HomelabSnapshot s)

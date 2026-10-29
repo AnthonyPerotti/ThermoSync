@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Xml.Linq;
 using Microsoft.Win32;
 
 namespace ThermoSync;
@@ -13,6 +14,7 @@ public partial class MainWindow
 {
     private const string RunRegistryKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string AppRunName = "ThermoSync";
+    private const string TaskName = "ThermoSync_Startup";
     private string? _pendingUpdateUrl;
 
     private void InitSettingsUi()
@@ -31,41 +33,101 @@ public partial class MainWindow
 
     private static bool IsStartWithWindowsEnabled()
     {
+        // Primary: check Task Scheduler (works with requireAdministrator manifest)
+        try
+        {
+            var psi = new ProcessStartInfo("schtasks.exe", $"/query /tn \"{TaskName}\" /fo LIST")
+            { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
+            using var p = Process.Start(psi);
+            p?.WaitForExit(3000);
+            if (p?.ExitCode == 0) return true;
+        }
+        catch { }
+
+        // Fallback: legacy Run key (for migration)
         try
         {
             using var key = Registry.CurrentUser.OpenSubKey(RunRegistryKey, false);
             return key?.GetValue(AppRunName) != null;
         }
-        catch
-        {
-            return false;
-        }
+        catch { return false; }
     }
 
     private void SetStartWithWindows(bool enable)
     {
+        // Clean up legacy Run key (can't launch requireAdministrator apps at logon)
         try
         {
             using var key = Registry.CurrentUser.OpenSubKey(RunRegistryKey, true);
-            if (key == null) return;
+            key?.DeleteValue(AppRunName, false);
+        }
+        catch { }
 
-            if (enable)
+        if (enable)
+        {
+            try
             {
                 string exePath = Environment.ProcessPath
                     ?? Process.GetCurrentProcess().MainModule?.FileName
                     ?? "";
-                if (!string.IsNullOrEmpty(exePath))
-                {
-                    string args = _settings.StartMinimized ? " --minimized" : "";
-                    key.SetValue(AppRunName, $"\"{exePath}\"{args}");
-                }
+                if (string.IsNullOrEmpty(exePath)) return;
+
+                string args = _settings.StartMinimized ? "--minimized" : "";
+                string ns = "http://schemas.microsoft.com/windows/2004/02/mit/task";
+
+                // Task Scheduler XML: runs at logon with highest privileges (bypasses UAC)
+                string xmlPath = Path.Combine(Path.GetTempPath(), "ThermoSync_Task.xml");
+                var xml = new XDocument(
+                    new XDeclaration("1.0", "UTF-16", null),
+                    new XElement(XName.Get("Task", ns),
+                        new XAttribute("version", "1.2"),
+                        new XElement(XName.Get("RegistrationInfo", ns),
+                            new XElement(XName.Get("Description", ns), "Start ThermoSync at user logon with elevated privileges")),
+                        new XElement(XName.Get("Triggers", ns),
+                            new XElement(XName.Get("LogonTrigger", ns),
+                                new XElement(XName.Get("Enabled", ns), "true"),
+                                new XElement(XName.Get("UserId", ns), Environment.UserName),
+                                new XElement(XName.Get("Delay", ns), "PT5S"))),
+                        new XElement(XName.Get("Principals", ns),
+                            new XElement(XName.Get("Principal", ns),
+                                new XAttribute("id", "Author"),
+                                new XElement(XName.Get("LogonType", ns), "InteractiveToken"),
+                                new XElement(XName.Get("RunLevel", ns), "HighestAvailable"))),
+                        new XElement(XName.Get("Settings", ns),
+                            new XElement(XName.Get("MultipleInstancesPolicy", ns), "IgnoreNew"),
+                            new XElement(XName.Get("DisallowStartIfOnBatteries", ns), "false"),
+                            new XElement(XName.Get("StopIfGoingOnBatteries", ns), "false"),
+                            new XElement(XName.Get("ExecutionTimeLimit", ns), "PT0S"),
+                            new XElement(XName.Get("AllowStartOnDemand", ns), "true")),
+                        new XElement(XName.Get("Actions", ns),
+                            new XElement(XName.Get("Exec", ns),
+                                new XElement(XName.Get("Command", ns), exePath),
+                                new XElement(XName.Get("Arguments", ns), args),
+                                new XElement(XName.Get("WorkingDirectory", ns), Path.GetDirectoryName(exePath) ?? "")))));
+
+                xml.Save(xmlPath);
+
+                var psi = new ProcessStartInfo("schtasks.exe",
+                    $"/create /tn \"{TaskName}\" /xml \"{xmlPath}\" /f")
+                { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true };
+                using var p = Process.Start(psi);
+                p?.WaitForExit(5000);
+
+                try { File.Delete(xmlPath); } catch { }
             }
-            else
-            {
-                key.DeleteValue(AppRunName, false);
-            }
+            catch { }
         }
-        catch { }
+        else
+        {
+            try
+            {
+                var psi = new ProcessStartInfo("schtasks.exe", $"/delete /tn \"{TaskName}\" /f")
+                { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true };
+                using var p = Process.Start(psi);
+                p?.WaitForExit(3000);
+            }
+            catch { }
+        }
     }
 
     private void ChkStartWithWindows_Click(object sender, RoutedEventArgs e)
