@@ -20,7 +20,7 @@ O software divide suas funcoes em modulos especializados:
 - **Histerese Termica e Amortecimento Acustico:** Histerese configuravel (padrao 3 C) e rampa suave de desaceleracao (ramp-down amortecido) para evitar aceleracoes bruscas (fan revving) em limiares de temperatura, com resposta imediata para subidas termicas.
 - **Watchdog de Ventoinhas Travadas:** Monitoramento de seguranca que detecta falhas mecanicas ou bloqueios fisicos quando o comando PWM permanece acima de 35% com rotacao nula (0 RPM) por 5 ciclos consecutivos.
 - **Curva Customizada via Software:** Calibracao de 4 pontos termicos PWM (35 C a 85 C) com selecao de sensor de referencia (CPU, GPU ou o maior entre ambos) e interpolacao linear continua.
-- **Perfis Vinculados a Jogos (Per-Game Profiles):** Aplicacao automatica de curva de refrigeracao especifica ao iniciar cada jogo no launcher e restauracao automatica do perfil padrao ao encerrar a partida.
+- **Perfis Vinculados a Jogos (Per-Game Profiles):** Aplicacao e ajuste continuo de curva de refrigeracao especifica ao detectar a execucao do jogo (tanto pelo launcher integrado quanto por inicializacao externa via Steam/Epic/desktop) com restauracao confiavel do perfil global ao encerrar a partida.
 
 ### 3. Mecanismos de Benchmark e Estresse (SYNC BENCH / SYNC OC)
 - **Renderizador de CPU (`Benchmarks/BenchRenderer.cs`):** Path tracer multithreaded com amostragem deterministica (1024 amostras/pixel), reflexao e refracao. Executa em modos single-thread ou multi-thread com balanceamento de carga do centro para a borda.

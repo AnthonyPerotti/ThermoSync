@@ -167,8 +167,22 @@ public partial class MainWindow
             ((float)_settings.FanCurveP3Temp, (float)_settings.FanCurveP3Pct),
             ((float)_settings.FanCurveP4Temp, (float)_settings.FanCurveP4Pct),
         };
+        string targetMode = !string.IsNullOrWhiteSpace(_gameOverrideFanProfile)
+            ? _gameOverrideFanProfile
+            : _settings.FanMode;
+
+        if (targetMode.Equals("Auto", StringComparison.OrdinalIgnoreCase))
+        {
+            if (_fans.ActiveProfile != "Auto")
+            {
+                _fans.ApplyProfile("Auto");
+            }
+            UpdateFansLive();
+            return;
+        }
+
         _fans.ApplyProfile(
-            _settings.FanMode,
+            targetMode,
             _settings.FanManualPct,
             cpuTemp,
             gpuTemp,

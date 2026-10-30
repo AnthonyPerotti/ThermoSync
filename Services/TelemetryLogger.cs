@@ -45,8 +45,6 @@ public sealed class TelemetryLogger : IDisposable
         double ramUsedGb,
         double ramTotalGb,
         double ramPct,
-        float? diskTemp,
-        float? diskLoad,
         string? throttlingStatus,
         string? activeGame)
     {
@@ -55,7 +53,7 @@ public sealed class TelemetryLogger : IDisposable
         var culture = CultureInfo.InvariantCulture;
         string line = string.Format(
             culture,
-            "{0:yyyy-MM-dd HH:mm:ss};{1};{2};{3};{4};{5};{6};{7};{8};{9};{10};{11};{12:0.00};{13:0.00};{14:0.0};{15};{16};{17};{18}",
+            "{0:yyyy-MM-dd HH:mm:ss};{1};{2};{3};{4};{5};{6};{7};{8};{9};{10};{11};{12:0.00};{13:0.00};{14:0.0};{15};{16}",
             timestamp,
             cpuTemp.HasValue ? cpuTemp.Value.ToString("0.0", culture) : "",
             cpuLoad.HasValue ? cpuLoad.Value.ToString("0.0", culture) : "",
@@ -71,8 +69,6 @@ public sealed class TelemetryLogger : IDisposable
             ramUsedGb,
             ramTotalGb,
             ramPct,
-            diskTemp.HasValue ? diskTemp.Value.ToString("0.0", culture) : "",
-            diskLoad.HasValue ? diskLoad.Value.ToString("0.0", culture) : "",
             EscapeCsv(throttlingStatus ?? ""),
             EscapeCsv(activeGame ?? "")
         );
@@ -142,7 +138,7 @@ public sealed class TelemetryLogger : IDisposable
             {
                 try
                 {
-                    const string header = "sep=;\nTimestamp;CpuTemp;CpuLoad;CpuClock;CpuPowerW;GpuTemp;GpuHotspot;GpuLoad;GpuClock;GpuPowerW;GpuVramUsedGb;GpuVramTotalGb;RamUsedGb;RamTotalGb;RamPct;DiskTemp;DiskLoad;ThrottlingStatus;ActiveGame";
+                    const string header = "sep=;\nTimestamp;CpuTemp;CpuLoad;CpuClock;CpuPowerW;GpuTemp;GpuHotspot;GpuLoad;GpuClock;GpuPowerW;GpuVramUsedGb;GpuVramTotalGb;RamUsedGb;RamTotalGb;RamPct;ThrottlingStatus;ActiveGame";
                     File.WriteAllText(_currentFilePath, header + Environment.NewLine, new System.Text.UTF8Encoding(true));
                 }
                 catch { }

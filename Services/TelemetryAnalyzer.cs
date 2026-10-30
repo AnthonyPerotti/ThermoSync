@@ -62,11 +62,11 @@ public static class TelemetryAnalyzer
                 if (float.TryParse(cols[1], culture, out var cTemp) && cTemp > 0) cpuTemps.Add(cTemp);
                 if (float.TryParse(cols[2], culture, out var cLoad) && cLoad >= 0) cpuLoads.Add(cLoad);
 
-                // Check GpuTemp in column 4 or 5 depending on schema
-                int gpuTempCol = cols.Length >= 18 ? 5 : 4;
-                int gpuLoadCol = cols.Length >= 18 ? 7 : 6;
-                int ramPctCol = cols.Length >= 18 ? 14 : 10;
-                int throtCol = cols.Length >= 18 ? 17 : -1;
+                // Check GpuTemp and throttling depending on schema (19 cols = with disk, 17 cols = without disk, 12 cols = legacy)
+                int gpuTempCol = cols.Length >= 16 ? 5 : 4;
+                int gpuLoadCol = cols.Length >= 16 ? 7 : 6;
+                int ramPctCol = cols.Length >= 16 ? 14 : 10;
+                int throtCol = cols.Length >= 19 ? 17 : (cols.Length >= 17 ? 15 : -1);
                 int gameCol = cols.Length - 1;
 
                 if (float.TryParse(cols[gpuTempCol], culture, out var gTemp) && gTemp > 0) gpuTemps.Add(gTemp);

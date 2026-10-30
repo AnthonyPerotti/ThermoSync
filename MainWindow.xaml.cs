@@ -55,6 +55,7 @@ public partial class MainWindow : Window
     // Gargalo + overlay
     public sealed record MeterItem(string Label, string Value, double Fraction, string? Score = null, string? Detail = null);
     private readonly FrameMonitor _frames = new();
+    private string? _gameOverrideFanProfile;
     private bool _autoGamePowerPlanActive;
     private BottleneckSession? _bnSession;
     private double _balanceRatio = 1;
@@ -144,17 +145,36 @@ public partial class MainWindow : Window
             if (PageOptimize.IsVisible) UpdateRamStatus();
             if (PageFans.IsVisible) UpdateFansLive();
             if (PageSettings.IsVisible) UpdateTelemetryStatusUi();
-            if (!_settings.FanMode.Equals("Auto", StringComparison.OrdinalIgnoreCase)) ApplyCurrentFanProfile();
-            CheckAlerts();
             string? activeFgGame = _frames.Running ? _frames.GetForegroundStats()?.ProcessName : null;
             if (!string.IsNullOrEmpty(activeFgGame))
             {
                 if (!_autoGamePowerPlanActive) { PowerPlanManager.EnterHighPerformanceMode(); _autoGamePowerPlanActive = true; }
+
+                // Detect and apply per-game fan profile if not manually launched via Launcher
+                if (_gameOverrideFanProfile == null)
+                {
+                    var matchedProfile = FindGameProfileForProcess(activeFgGame);
+                    if (matchedProfile != null && !string.IsNullOrWhiteSpace(matchedProfile.FanProfile) && !matchedProfile.FanProfile.Equals("default", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _gameOverrideFanProfile = matchedProfile.FanProfile;
+                        ApplyCurrentFanProfile();
+                    }
+                }
             }
-            else if (_autoGamePowerPlanActive)
+            else
             {
-                PowerPlanManager.RestorePreviousMode(); _autoGamePowerPlanActive = false;
+                if (_autoGamePowerPlanActive) { PowerPlanManager.RestorePreviousMode(); _autoGamePowerPlanActive = false; }
+                if (_launchCts == null && _gameOverrideFanProfile != null)
+                {
+                    _gameOverrideFanProfile = null;
+                    ApplyCurrentFanProfile();
+                }
             }
+
+            string effectiveFan = _gameOverrideFanProfile ?? _settings.FanMode;
+            if (!effectiveFan.Equals("Auto", StringComparison.OrdinalIgnoreCase)) ApplyCurrentFanProfile();
+            else if (_fans.ActiveProfile != "Auto") _fans.ApplyProfile("Auto");
+            CheckAlerts();
             UpdateTrayTooltip();
 
             if (_telemetryTick++ % Math.Max(1, _settings.TelemetryLogIntervalSec) == 0 && _settings.TelemetryLogEnabled)
@@ -174,10 +194,6 @@ public partial class MainWindow : Window
                     var vramUsedRow = _monitor.Rows.FirstOrDefault(r => r.Hardware == g.Name && r.Type == SensorType.SmallData && r.Name.Contains("Memory Used"));
                     if (vramUsedRow?.RawValue is float vmb) vramUsedGb = vmb / 1024.0;
                 }
-
-                var diskRows = _monitor.Rows.Where(r => r.HardwareType == HardwareType.Storage).ToList();
-                float? diskTemp = diskRows.Where(r => r.Type == SensorType.Temperature).Max(r => (float?)r.RawValue);
-                float? diskLoad = diskRows.Where(r => r.Type == SensorType.Load).Max(r => (float?)r.RawValue);
 
                 IntPtr nvmlH = _gpus.Count > 0 ? _gpus[0].NvmlHandle : IntPtr.Zero;
                 var throttling = ThrottlingDetector.Evaluate(_monitor.CpuTemperature, _monitor.CpuLoad, null, MainGpuTemp(), (float?)GetGpuHotspot(), (float?)MainGpuLoad(), MainGpuPower(), nvmlH);
@@ -199,8 +215,6 @@ public partial class MainWindow : Window
                     ramUsedGb,
                     ramTotalGb,
                     ramPct,
-                    diskTemp,
-                    diskLoad,
                     throttlingDesc,
                     game
                 );
@@ -2426,4 +2440,42 @@ try {
             DpcStatus = _lastLatencyResult?.Status
         };
     }
+
+    private GameProfile? FindGameProfileForProcess(string processName)
+    {
+        if (string.IsNullOrWhiteSpace(processName)) return null;
+
+        foreach (var kvp in _settings.GameProfiles)
+        {
+            var profile = kvp.Value;
+            if (!string.IsNullOrEmpty(profile.ExePath))
+            {
+                try
+                {
+                    string exeName = System.IO.Path.GetFileNameWithoutExtension(profile.ExePath);
+                    if (exeName.Equals(processName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return profile;
+                    }
+                }
+                catch { }
+            }
+
+            if (kvp.Key.EndsWith(processName, StringComparison.OrdinalIgnoreCase))
+            {
+                return profile;
+            }
+        }
+
+        var custom = _settings.CustomGames.FirstOrDefault(c =>
+            !string.IsNullOrEmpty(c.Exe) &&
+            System.IO.Path.GetFileNameWithoutExtension(c.Exe).Equals(processName, StringComparison.OrdinalIgnoreCase));
+        if (custom != null && _settings.GameProfiles.TryGetValue("custom:" + custom.Name, out var cProfile))
+        {
+            return cProfile;
+        }
+
+        return null;
+    }
+
 }

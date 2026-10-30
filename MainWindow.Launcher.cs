@@ -280,11 +280,10 @@ public partial class MainWindow
 
         _launchCts = new CancellationTokenSource();
         BtnPlay.Content = "PARAR ACOMPANHAMENTO";
-        string? prevFanProfile = null;
         if (!string.IsNullOrWhiteSpace(p.FanProfile) && !p.FanProfile.Equals("default", StringComparison.OrdinalIgnoreCase))
         {
-            prevFanProfile = _fans.ActiveProfile;
-            _fans.ApplyProfile(p.FanProfile);
+            _gameOverrideFanProfile = p.FanProfile;
+            ApplyCurrentFanProfile();
         }
 
         bool previousOverlayState = ChkOverlay.IsChecked == true;
@@ -317,9 +316,10 @@ public partial class MainWindow
                 ChkOverlay.IsChecked = false;
             }
 
-            if (!string.IsNullOrEmpty(prevFanProfile))
+            if (_gameOverrideFanProfile != null)
             {
-                _fans.ApplyProfile(prevFanProfile);
+                _gameOverrideFanProfile = null;
+                ApplyCurrentFanProfile();
             }
             _launchCts?.Dispose();
             _launchCts = null;

@@ -881,11 +881,11 @@
                                 <WrapPanel Margin="0,0,0,10">
                                     <StackPanel Margin="0,0,14,6">
                                         <TextBlock Text="IP / Host do Servidor:" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,0,0,4"/>
-                                        <TextBox x:Name="TxtHomelabNetHost" Width="180" Text="192.168.1.1" Height="28" Padding="8,4"/>
+                                        <TextBox x:Name="TxtHomelabNetHost" Width="180" Text="192.168.1.1" Height="34" Padding="10,4" VerticalContentAlignment="Center" FontSize="13"/>
                                     </StackPanel>
                                     <StackPanel Margin="0,0,16,6">
                                         <TextBlock Text="Porta (padrão iperf3 5201):" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,0,0,4"/>
-                                        <TextBox x:Name="TxtHomelabNetPort" Width="80" Text="5201" Height="28" Padding="8,4"/>
+                                        <TextBox x:Name="TxtHomelabNetPort" Width="80" Text="5201" Height="34" Padding="10,4" VerticalContentAlignment="Center" FontSize="13"/>
                                     </StackPanel>
                                     <Button x:Name="BtnHomelabNetTest" Style="{StaticResource PrimaryButton}" Content="TESTAR HOMELAB (IPERF3)"
                                             Padding="18,8" VerticalAlignment="Bottom" Margin="0,0,0,6" Click="BtnHomelabNetTest_Click"/>

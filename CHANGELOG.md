@@ -1,5 +1,23 @@
 # Registro de Mudancas - ThermoSync
 
+## Versao 1.6.2
+
+### Controle Automatico de Ventoinhas por Jogo (SYNC FAN / SYNC GAMES)
+- Corrigida a sobreposicao ciclica de perfil no temporizador principal de 1 segundo: o modo padrao global (`FanMode`) nao sobrescreve mais a curva configurada no perfil do jogo durante a sessao ativa.
+- Implementada deteccao automatica em segundo plano de processos em primeiro plano via `FrameMonitor`: jogos configurados que forem iniciados fora do launcher interno (diretamente pela Steam, Epic Games, Riot ou atalhos) agora ativam dinamicamente a curva termica especificada no perfil e restauram o modo padrao ao encerrar.
+- A curva termica do jogo (Silencioso, Equilibrado, Desempenho ou Personalizado) agora calcula e atualiza a modulacao PWM em tempo real segundo a temperatura de CPU e GPU ao longo de toda a gameplay.
+
+### Otimizacao do Historico de Telemetria CSV (SYNC SETTINGS)
+- Removidas as colunas `DiskTemp` e `DiskLoad` do fluxo de gravacao continua de telemetria diária (`TelemetryLogger.cs`), reduzindo o footprint de I/O em disco e simplificando a analise no Excel.
+- Atualizado o analisador estatistico (`TelemetryAnalyzer.cs`) para suporte transparente tanto ao novo schema de 17 colunas quanto aos arquivos legados de 19 colunas.
+
+### Ajuste de Interface na Aba de Rede (SYNC NET)
+- Corrigida a altura e o alinhamento vertical dos campos de texto de Host/IP e Porta (`TxtHomelabNetHost` e `TxtHomelabNetPort`), evitando que os caracteres numericos sejam cortados inferiormente por restricoes de layout do template.
+
+### Publicacao de Releases Singulares no GitHub Actions
+- Atualizado o workflow `.github/workflows/publicar.yml` para extrair exclusivamente a secao da versao publicada a partir do `CHANGELOG.md`, eliminando a repeticao de todo o historico do projeto nas notas individuais de cada release.
+
+
 ## Versao 1.6.1
 
 ### Graficos Nativos PGFPlots em Relatorios LaTeX (SYNC DISKS / REPORT)

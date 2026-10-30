@@ -56,21 +56,31 @@ jobs:
           $vTag = "v$ver"
           Write-Host "Publicando versao $vTag..."
 
+          # Extrai apenas as notas da versao em publicacao do CHANGELOG.md
+          $cl = Get-Content CHANGELOG.md -Raw
+          $regex = "(?ms)^##\s+Versao\s+" + [regex]::Escape($ver) + "\b(.*?)(?=^##\s+Versao|\Z)"
+          if ($cl -match $regex) {
+            $notes = $matches[0].Trim()
+          } else {
+            $notes = "Lancamento do THERMOSYNC $vTag."
+          }
+          [System.IO.File]::WriteAllText("RELEASE_NOTES.md", $notes, [System.Text.Encoding]::UTF8)
+
           # 1. Criar ou atualizar a release individual da versao
           if (gh release view $vTag 2>$null) {
             Write-Host "Release $vTag ja existe. Atualizando artefatos..."
             gh release upload $vTag dist/ThermoSync.exe ThermoSync.zip --clobber
           } else {
             Write-Host "Criando nova release $vTag..."
-            gh release create $vTag dist/ThermoSync.exe ThermoSync.zip --title "THERMOSYNC $vTag" --notes-file CHANGELOG.md
+            gh release create $vTag dist/ThermoSync.exe ThermoSync.zip --title "THERMOSYNC $vTag" --notes-file RELEASE_NOTES.md
           }
 
           # 2. Atualizar tambem a release rolling 'latest'
           if (gh release view latest 2>$null) {
-            gh release edit latest --title "THERMOSYNC (versao mais recente: $vTag)" --notes-file CHANGELOG.md
+            gh release edit latest --title "THERMOSYNC (versao mais recente: $vTag)" --notes-file RELEASE_NOTES.md
             gh release upload latest dist/ThermoSync.exe ThermoSync.zip --clobber
           } else {
-            gh release create latest dist/ThermoSync.exe ThermoSync.zip --title "THERMOSYNC (versao mais recente: $vTag)" --notes-file CHANGELOG.md
+            gh release create latest dist/ThermoSync.exe ThermoSync.zip --title "THERMOSYNC (versao mais recente: $vTag)" --notes-file RELEASE_NOTES.md
           }
 
       - name: Publicar Release (Tag de Versao)
@@ -80,8 +90,18 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $tag = $env:GITHUB_REF_NAME
+          $tagVer = $tag.TrimStart('v')
+          $cl = Get-Content CHANGELOG.md -Raw
+          $regex = "(?ms)^##\s+Versao\s+" + [regex]::Escape($tagVer) + "\b(.*?)(?=^##\s+Versao|\Z)"
+          if ($cl -match $regex) {
+            $notes = $matches[0].Trim()
+          } else {
+            $notes = "Lancamento do THERMOSYNC $tag."
+          }
+          [System.IO.File]::WriteAllText("RELEASE_NOTES.md", $notes, [System.Text.Encoding]::UTF8)
+
           if (gh release view $tag 2>$null) {
             Write-Host "::warning::Release $tag ja existe. Nenhuma alteracao feita."
           } else {
-            gh release create $tag dist/ThermoSync.exe ThermoSync.zip --title "THERMOSYNC $tag" --notes-file CHANGELOG.md --verify-tag
+            gh release create $tag dist/ThermoSync.exe ThermoSync.zip --title "THERMOSYNC $tag" --notes-file RELEASE_NOTES.md --verify-tag
           }
