@@ -48,7 +48,9 @@ public static class TelemetryAnalyzer
                 string line = lines[i];
                 if (string.IsNullOrWhiteSpace(line)) continue;
 
-                var cols = line.Split(',');
+                if (line.StartsWith("sep=", StringComparison.OrdinalIgnoreCase) || line.StartsWith("Timestamp", StringComparison.OrdinalIgnoreCase)) continue;
+                char sep = line.Contains(';') ? ';' : ',';
+                var cols = line.Split(sep);
                 if (cols.Length < 11) continue;
 
                 if (DateTime.TryParse(cols[0], culture, DateTimeStyles.None, out var dt))

@@ -2,6 +2,17 @@
 
 ## Versao 1.5.7
 
+### Formatacao do Historico de Telemetria CSV (Compatibilidade Excel)
+- Adicionada declaracao explicita de separador `sep=;` e codificacao UTF-8 com BOM (`UTF8Encoding(true)`) na gravacao dos logs diarios em `TelemetryLogger.cs`.
+- Substituido delimitador interno por ponto e virgula (`;`), eliminando o problema em que o Excel pt-BR abria todas as colunas aglutinadas em uma unica celula da coluna A.
+- Atualizado `TelemetryAnalyzer.cs` para detectar dinamicamente delimitadores `;` e `,`, mantendo retrocompatibilidade total com arquivos de log legados.
+
+### Cena de Jogo e Estresse Grafico Intensificado (SYNC BENCH)
+- Aumentada densidade de vegetacao e objetos instanciados para 70.000 arvores e malha de terreno para 640x640 vertices (409 mil vertices), tornando o vale muito mais denso e visualmente preenchido.
+- Implementada iluminacao especular Blinn-Phong com Fresnel Schlick e sub-surface scattering por fragmento no pixel shader de terreno e folhagens.
+- Simulacao de agua atualizada com 10 ondas trocoidais simultaneas e dispersao especular dupla.
+- Adicionado estagio de pos-processamento com raios crepusculares volumetricos (God Rays) executando 16 amostras radiais em espaco de tela por pixel. Isso escala diretamente com a resolucao da tela (33 milhoes de taps em 1080p contra 132 milhoes de taps em 4K), fazendo a carga de 4K penalizar a GPU de forma realista como em jogos AAA modernos.
+
 ### Inicializacao com o Windows via Task Scheduler
 - Substituicao do registro de inicializacao padrao (`HKCU\Run`) pela criacao de tarefas agendadas elevadas via `schtasks.exe` com XML schema v1.2 (`RunLevel: HighestAvailable`).
 - Resolvido o bloqueio silencioso do UAC durante o logon do Windows, garantindo que o aplicativo inicie normalmente mesmo exigindo manifesto de administrador.

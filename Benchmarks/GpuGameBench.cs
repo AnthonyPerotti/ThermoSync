@@ -40,10 +40,10 @@ public sealed class GpuGameBench
 
     // ------------------------------------------------------------------ cena (CPU)
 
-    private const int TerrainN = 512;        // vértices por lado
-    private const float TerrainSize = 800f;
+    private const int TerrainN = 640;        // vértices por lado
+    private const float TerrainSize = 900f;
     private const float WaterY = 7.5f;
-    private const int TreeCount = 40_000;
+    private const int TreeCount = 70_000;
 
     /// <summary>Altura do terreno: ruído fractal (fBm) com um vale sinuoso cortando o mapa.</summary>
     public static float TerrainHeight(float x, float z)
@@ -150,8 +150,8 @@ public sealed class GpuGameBench
             float x = (R() - 0.5f) * TerrainSize * 0.98f, z = (R() - 0.5f) * TerrainSize * 0.98f;
             float h = TerrainHeight(x, z);
             float slope = MathF.Abs(TerrainHeight(x + 1, z) - TerrainHeight(x - 1, z)) + MathF.Abs(TerrainHeight(x, z + 1) - TerrainHeight(x, z - 1));
-            if (h < WaterY + 1.5f || h > 48 || slope > 1.4f) continue;
-            list.Add(new Vector4(x, h - 0.2f, z, 0.7f + R() * 0.9f));
+            if (h < WaterY + 1.2f || h > 56 || slope > 1.8f) continue;
+            list.Add(new Vector4(x, h - 0.2f, z, 0.55f + R() * 1.15f));
         }
         return list.ToArray();
     }
@@ -261,13 +261,24 @@ float3 Shade(float3 wpos, float3 n, float3 albedo)
     float3 l = -SunDir;
     float ndl = saturate(dot(n, l));
     float3 sunCol  = float3(1.75, 1.62, 1.38);
-    float3 direct  = ndl * Shadow(wpos, n) * sunCol;
+    float shadowFactor = Shadow(wpos, n);
+    float3 direct  = ndl * shadowFactor * sunCol;
     float3 skyAmb  = float3(0.20, 0.28, 0.42);
     float3 gndAmb  = float3(0.08, 0.07, 0.05);
     float3 ambient = lerp(gndAmb, skyAmb, n.y * 0.5 + 0.5);
-    float3 col = albedo * (direct + ambient);
+
+    // Especular Blinn-Phong + Schlick Fresnel por pixel (aumenta carga por pixel proporcional a resolucao)
+    float3 v = normalize(CamPos - wpos);
+    float3 h = normalize(l + v);
+    float ndh = saturate(dot(n, h));
+    float spec = pow(ndh, 36.0) * 0.4 * shadowFactor;
+
+    // Sub-surface scattering aproximado em folhagens
+    float sss = saturate(dot(-l, v)) * saturate(1.0 - ndl) * 0.35;
+    float3 sssCol = float3(0.15, 0.35, 0.08) * sss;
+
+    float3 col = albedo * (direct + ambient + sssCol) + spec * sunCol;
     float dist = length(wpos - CamPos);
-    // Neblina suave atmosférica azulada em vez de cinza leitoso opaco
     float fog = 1 - exp(-pow(dist * 0.00095, 1.3));
     float3 fogCol = lerp(float3(0.70, 0.80, 0.92), Sky(normalize(wpos - CamPos)), 0.7);
     return lerp(col, fogCol, fog);
@@ -307,26 +318,28 @@ float4 WaterPS(PSIn i) : SV_TARGET
 {
     float2 p = i.wpos.xz;
     float3 n = float3(0, 1, 0);
-    [unroll] for (int k = 0; k < 6; k++)           // ondas somadas
+    [unroll] for (int k = 0; k < 10; k++)          // 10 ondas trocoidais para alta fidelidade
     {
-        float2 d = float2(cos(k * 1.7), sin(k * 1.7));
-        float f = 0.12 * (k + 1), ph = dot(d, p) * f + Time * (1.1 + k * 0.35);
-        n.xz += d * cos(ph) * 0.08 / (k + 1);
+        float2 d = float2(cos(k * 1.57), sin(k * 1.57));
+        float f = 0.14 * (k + 1);
+        float ph = dot(d, p) * f + Time * (1.15 + k * 0.32);
+        n.xz += d * cos(ph) * 0.075 / (k + 1);
     }
     n = normalize(n);
     float3 v = normalize(i.wpos - CamPos);
-    float fres = 0.06 + 0.94 * pow(1 - saturate(dot(-v, n)), 4);
+    float fres = 0.04 + 0.96 * pow(1 - saturate(dot(-v, n)), 5);
     float3 refl = Sky(reflect(v, n));
-    float3 deep = float3(0.04, 0.22, 0.44);
-    float3 shallow = float3(0.10, 0.40, 0.58);
+    float3 deep = float3(0.03, 0.18, 0.38);
+    float3 shallow = float3(0.12, 0.42, 0.56);
     float3 col = lerp(shallow, deep, 0.55);
     col = lerp(col, refl, fres);
 
-    // Reflexo especular do sol na água
+    // Reflexo especular duplo (sun highlight + broad specular)
     float3 sunDir = -SunDir;
     float3 h = normalize(sunDir - v);
-    float spec = pow(saturate(dot(n, h)), 160);
-    col += spec * float3(3.5, 3.2, 2.4) * Shadow(i.wpos, n);
+    float spec = pow(saturate(dot(n, h)), 256);
+    float specBroad = pow(saturate(dot(n, h)), 28) * 0.35;
+    col += (spec * float3(4.5, 4.0, 3.0) + specBroad * float3(1.2, 1.0, 0.7)) * Shadow(i.wpos, n);
 
     float dist = length(i.wpos - CamPos);
     float fog = 1 - exp(-pow(dist * 0.00095, 1.3));
@@ -351,8 +364,33 @@ float4 SkyPS(FsOut i) : SV_TARGET
 float4 PostPS(FsOut i) : SV_TARGET
 {
     float3 c = Hdr.Sample(LinearSampler, i.uv).rgb;
+
+    // Volumetric Sun Shafts (Raios Crepusculares): 16 amostras de tela por pixel
+    // Escala exatamente com a contagem de pixels: 33 milhoes de taps em 1080p vs 132 milhoes de taps em 4K
+    float4 sunScreen = mul(float4(-SunDir * 1200.0, 1.0), ViewProj);
+    sunScreen.xyz /= max(0.0001, sunScreen.w);
+    float2 sunUv = sunScreen.xy * float2(0.5, -0.5) + 0.5;
+
+    if (sunScreen.z > 0 && all(sunUv >= -0.3) && all(sunUv <= 1.3))
+    {
+        float2 delta = (sunUv - i.uv) / 16.0;
+        float2 curUv = i.uv;
+        float decay = 1.0;
+        float illumination = 0.0;
+
+        [unroll] for (int s = 0; s < 16; s++)
+        {
+            curUv += delta;
+            float3 samp = Hdr.SampleLevel(LinearSampler, curUv, 0).rgb;
+            float lum = max(0.0, dot(samp, float3(0.299, 0.587, 0.114)) - 1.25);
+            illumination += lum * decay * 0.045;
+            decay *= 0.93;
+        }
+        c += illumination * float3(1.35, 1.15, 0.85);
+    }
+
     c *= 1.15;
-    c = c * (2.51 * c + 0.03) / (c * (2.43 * c + 0.59) + 0.14);         // ACES
+    c = c * (2.51 * c + 0.03) / (c * (2.43 * c + 0.59) + 0.14);         // ACES Tone mapping
     float2 d = i.uv - 0.5;
     c *= 1 - dot(d, d) * 0.4;                                           // vinheta suave
     c = pow(saturate(c), 1.0 / 2.2);                                    // gamma per-channel

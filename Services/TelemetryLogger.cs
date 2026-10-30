@@ -55,7 +55,7 @@ public sealed class TelemetryLogger : IDisposable
         var culture = CultureInfo.InvariantCulture;
         string line = string.Format(
             culture,
-            "{0:yyyy-MM-dd HH:mm:ss},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12:0.00},{13:0.00},{14:0.0},{15},{16},{17},{18}",
+            "{0:yyyy-MM-dd HH:mm:ss};{1};{2};{3};{4};{5};{6};{7};{8};{9};{10};{11};{12:0.00};{13:0.00};{14:0.0};{15};{16};{17};{18}",
             timestamp,
             cpuTemp.HasValue ? cpuTemp.Value.ToString("0.0", culture) : "",
             cpuLoad.HasValue ? cpuLoad.Value.ToString("0.0", culture) : "",
@@ -84,7 +84,7 @@ public sealed class TelemetryLogger : IDisposable
     private static string EscapeCsv(string val)
     {
         if (string.IsNullOrEmpty(val)) return "";
-        if (val.Contains(',') || val.Contains('"') || val.Contains('\n'))
+        if (val.Contains(';') || val.Contains(',') || val.Contains('"') || val.Contains('\n'))
             return $"\"{val.Replace("\"", "\"\"")}\"";
         return val;
     }
@@ -142,8 +142,8 @@ public sealed class TelemetryLogger : IDisposable
             {
                 try
                 {
-                    const string header = "Timestamp,CpuTemp,CpuLoad,CpuClock,CpuPowerW,GpuTemp,GpuHotspot,GpuLoad,GpuClock,GpuPowerW,GpuVramUsedGb,GpuVramTotalGb,RamUsedGb,RamTotalGb,RamPct,DiskTemp,DiskLoad,ThrottlingStatus,ActiveGame";
-                    File.WriteAllText(_currentFilePath, header + Environment.NewLine);
+                    const string header = "sep=;\nTimestamp;CpuTemp;CpuLoad;CpuClock;CpuPowerW;GpuTemp;GpuHotspot;GpuLoad;GpuClock;GpuPowerW;GpuVramUsedGb;GpuVramTotalGb;RamUsedGb;RamTotalGb;RamPct;DiskTemp;DiskLoad;ThrottlingStatus;ActiveGame";
+                    File.WriteAllText(_currentFilePath, header + Environment.NewLine, new System.Text.UTF8Encoding(true));
                 }
                 catch { }
             }
