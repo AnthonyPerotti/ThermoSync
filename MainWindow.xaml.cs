@@ -640,10 +640,10 @@ try {
         catch { }
     }
 
-    private void BtnUpdateAvailable_Click(object sender, RoutedEventArgs e)
+    private async void BtnUpdateAvailable_Click(object sender, RoutedEventArgs e)
     {
-        ShowPage("PageInteg");
-        TitlePage.Text = "Integração";
+        NavSettings.IsChecked = true;
+        await StartDownloadAndUpdateAsync();
     }
 
     // ---------------- Sistema ----------------

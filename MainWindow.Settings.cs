@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Media;
 using System.Xml.Linq;
 using Microsoft.Win32;
 
@@ -320,20 +321,31 @@ public partial class MainWindow
         }
     }
 
-    private async void BtnInstallUpdate_Click(object sender, RoutedEventArgs e)
+    public async Task StartDownloadAndUpdateAsync()
     {
         if (string.IsNullOrEmpty(_pendingUpdateUrl)) return;
 
         BtnInstallUpdate.IsEnabled = false;
         BtnCheckUpdate.IsEnabled = false;
+        BtnUpdateAvailable.IsEnabled = false;
         PrgUpdate.Visibility = Visibility.Visible;
         PrgUpdate.Value = 0;
         TxtUpdateStatus.Text = "Baixando nova versão do ThermoSync…";
+
+        // Altera ícone para rotação contínua (refresh / download spinner)
+        TxtUpdateIcon.Text = "\uE72C";
+        var spin = new System.Windows.Media.Animation.DoubleAnimation(0, 360, new Duration(TimeSpan.FromSeconds(1)))
+        {
+            RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever
+        };
+        RotUpdateIcon.BeginAnimation(RotateTransform.AngleProperty, spin);
+        BtnUpdateAvailable.ToolTip = "Baixando atualização…";
 
         var progress = new Progress<double>(p =>
         {
             PrgUpdate.Value = p * 100.0;
             TxtUpdateStatus.Text = $"Baixando: {p:P0}…";
+            BtnUpdateAvailable.ToolTip = $"Baixando atualização: {p:P0}";
         });
 
         try
@@ -342,10 +354,19 @@ public partial class MainWindow
         }
         catch (Exception ex)
         {
+            RotUpdateIcon.BeginAnimation(RotateTransform.AngleProperty, null);
+            TxtUpdateIcon.Text = "\uE896";
+            BtnUpdateAvailable.IsEnabled = true;
+            BtnUpdateAvailable.ToolTip = $"Erro na atualização: {ex.Message}";
             PrgUpdate.Visibility = Visibility.Collapsed;
             BtnInstallUpdate.IsEnabled = true;
             BtnCheckUpdate.IsEnabled = true;
             TxtUpdateStatus.Text = $"Erro na atualização: {ex.Message}";
         }
+    }
+
+    private async void BtnInstallUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        await StartDownloadAndUpdateAsync();
     }
 }

@@ -2,6 +2,11 @@
 
 ## Versao 1.5.8
 
+### Aprimoramento do Botao de Atualizacao no Cabecalho
+- Corrigido o direcionamento do clique para a aba de Configuracoes (`PageSettings`), ativando visualmente o RadioButton `NavSettings` e expandindo a categoria no menu lateral.
+- Integrado o disparo automatico de download e instalacao imediata ao clicar no icone superior.
+- Implementada animacao de rotacao continua (spinner de carregamento via `RotateTransform`) e atualizacao do tooltip com a porcentagem de progresso em tempo real durante a transferencia.
+
 ### Formatacao do Historico de Telemetria CSV (Compatibilidade Excel)
 - Adicionada declaracao explicita de separador `sep=;` e codificacao UTF-8 com BOM (`UTF8Encoding(true)`) na gravacao dos logs diarios em `TelemetryLogger.cs`.
 - Substituido delimitador interno por ponto e virgula (`;`), eliminando a aglutinacao de dados em uma unica celula ao abrir no Excel em sistemas pt-BR.

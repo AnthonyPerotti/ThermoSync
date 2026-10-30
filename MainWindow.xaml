@@ -148,8 +148,15 @@
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right"
                         WindowChrome.IsHitTestVisibleInChrome="True">
-                <Button x:Name="BtnUpdateAvailable" Style="{StaticResource CaptionButton}" Content="&#xE896;" Click="BtnUpdateAvailable_Click"
-                        ToolTip="Atualização disponível" Visibility="Collapsed" Foreground="#2ECC71" FontSize="15"/>
+                <Button x:Name="BtnUpdateAvailable" Style="{StaticResource CaptionButton}" Click="BtnUpdateAvailable_Click"
+                        ToolTip="Atualização disponível · Clique para baixar agora" Visibility="Collapsed" Foreground="#2ECC71">
+                    <TextBlock x:Name="TxtUpdateIcon" Text="&#xE896;" FontFamily="{StaticResource Icons}" FontSize="15"
+                               RenderTransformOrigin="0.5,0.5">
+                        <TextBlock.RenderTransform>
+                            <RotateTransform x:Name="RotUpdateIcon" Angle="0"/>
+                        </TextBlock.RenderTransform>
+                    </TextBlock>
+                </Button>
                 <Button x:Name="BtnTheme" Style="{StaticResource CaptionButton}" Content="&#xE706;" Click="Theme_Click" ToolTip="Modo claro"/>
                 <Button Style="{StaticResource CaptionButton}" Content="&#xE921;" Click="Min_Click" ToolTip="Minimizar"/>
                 <Button x:Name="BtnMax" Style="{StaticResource CaptionButton}" Content="&#xE922;" Click="Max_Click" ToolTip="Maximizar"/>
