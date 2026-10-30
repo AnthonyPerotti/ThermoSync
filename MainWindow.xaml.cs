@@ -1955,6 +1955,8 @@ try {
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
+    private LatencyTestResult? _lastLatencyResult;
+
     private async void BtnTestLatency_Click(object sender, RoutedEventArgs e)
     {
         BtnTestLatency.IsEnabled = false;
@@ -1962,6 +1964,7 @@ try {
         try
         {
             var res = await LatencyWatchdog.TestLatencyAsync(TimeSpan.FromSeconds(3));
+            _lastLatencyResult = res;
             string badge = res.Status switch
             {
                 "EXCELENTE" => "✓ EXCELENTE",
@@ -2418,7 +2421,9 @@ try {
             Fps = fps,
             FrametimeMs = ftMs,
             Throttling = throttling,
-            Disks = disks
+            Disks = disks,
+            DpcLatencyUs = _lastLatencyResult?.MaxLatencyUs,
+            DpcStatus = _lastLatencyResult?.Status
         };
     }
 }

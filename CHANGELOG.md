@@ -1,5 +1,27 @@
 # Registro de Mudancas - ThermoSync
 
+## Versao 1.6.1
+
+### Graficos Nativos PGFPlots em Relatorios LaTeX (SYNC DISKS / REPORT)
+- Integrada geracao de graficos vetoriais de alta qualidade com o pacote `pgfplots` (compatibilidade 1.18) e notacao de unidades `siunitx` diretamente no exportador `.tex` de `ReportBuilder.cs`.
+- Renderizacao automatica de grafico de barras para o perfil termico dos sensores principais (CPU, GPU e demais componentes criticos).
+- Renderizacao de grafico comparativo para historico de testes de benchmark registrados.
+
+### Controle Remoto de Energia via Webhooks REST (Homelab / Home Assistant)
+- Adicionados endpoints HTTP assincronos em `HomelabService.cs`:
+  - `POST /api/power/sleep`: Suspensao do sistema (S3 Sleep) via P/Invoke `Powrprof.dll SetSuspendState`.
+  - `POST /api/power/lock`: Bloqueio imediato da estacao de trabalho via `user32.dll LockWorkStation`.
+  - `POST /api/power/reboot`: Reinicializacao controlada do Windows via `shutdown.exe /r /t 5`.
+  - `POST /api/power/shutdown`: Desligamento seguro do sistema via `shutdown.exe /s /t 5`.
+  - `POST /api/power/cancel`: Aborto de reinicializacao ou desligamento pendente via `shutdown.exe /a`.
+- Temporizacao segura de 600 ms para descarregar a resposta JSON ao cliente HTTP antes do acionamento do estado de energia.
+
+### Painel Web Homelab v1.6.1 (/dash)
+- Cartao interativo de Controle de Energia com botoes para Suspender, Bloquear, Reiniciar e Desligar, com caixas de dialogo de confirmacao e notificacoes de status.
+- Monitoramento da latencia DPC do kernel Windows diretamente no cabecalho do cartao com alertas visuais por limiar de jitter.
+- Metrica Prometheus `thermosync_dpc_latency_microseconds` exportada em `/metrics`.
+
+
 ## Versao 1.6.0
 
 ### Dashboard Web Embutido (/dash e /)

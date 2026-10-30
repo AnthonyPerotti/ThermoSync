@@ -251,6 +251,9 @@ public static class ReportBuilder
         sb.AppendLine(@"\usepackage{xcolor}");
         sb.AppendLine(@"\usepackage{microtype}");
         sb.AppendLine(@"\usepackage{hyperref}");
+        sb.AppendLine(@"\usepackage{siunitx}");
+        sb.AppendLine(@"\usepackage{pgfplots}");
+        sb.AppendLine(@"\pgfplotsset{compat=1.18}");
         sb.AppendLine();
         sb.AppendLine(@"\hypersetup{colorlinks=true,linkcolor=blue!70!black,urlcolor=blue!70!black}");
         sb.AppendLine();
@@ -403,6 +406,9 @@ public static class ReportBuilder
             sb.AppendLine(@"\end{tabularx}\vspace{1em}");
         }
 
+        // PGFPlots Chart Generation
+        AppendPgfplotsCharts(sb, d);
+
         sb.AppendLine(@"\end{document}");
         return sb.ToString();
     }
@@ -459,4 +465,117 @@ th{color:var(--muted);font-weight:600;font-size:12px}.k{color:var(--muted);width
 footer{margin-top:40px;color:var(--muted);font-size:12px}
 @media print{body{background:#fff;color:#000}.card{break-inside:avoid}}
 ";
+
+    private static void AppendPgfplotsCharts(StringBuilder sb, ReportData d)
+    {
+        // Extract thermal and benchmark metrics for visualization
+        var tempSensors = d.Sensors
+            .Where(s => s.Category.Contains("Temp", StringComparison.OrdinalIgnoreCase))
+            .Take(6)
+            .ToList();
+
+        if (tempSensors.Count > 0 || d.Benchmarks.Count > 0)
+        {
+            sb.AppendLine(@"\section{Gráficos de Diagnóstico e Telemetria (PGFPlots)}");
+        }
+
+        if (tempSensors.Count > 0)
+        {
+            var coords = new List<string>();
+            var dataPoints = new List<string>();
+
+            foreach (var s in tempSensors)
+            {
+                // Parse numeric value from string (e.g. "65.4 °C")
+                var match = System.Text.RegularExpressions.Regex.Match(s.Value, @"\d+([.,]\d+)?");
+                if (match.Success)
+                {
+                    string numStr = match.Value.Replace(',', '.');
+                    string label = TexEscape(s.Name).Replace(" ", @"~");
+                    if (label.Length > 15) label = label.Substring(0, 15);
+                    coords.Add(label);
+                    dataPoints.Add($"({label}, {numStr})");
+                }
+            }
+
+            if (coords.Count > 0)
+            {
+                string coordsList = string.Join(", ", coords);
+                sb.AppendLine(@"\begin{figure}[htbp]");
+                sb.AppendLine(@"\centering");
+                sb.AppendLine(@"\begin{tikzpicture}");
+                sb.AppendLine(@"\begin{axis}[");
+                sb.AppendLine(@"    ybar,");
+                sb.AppendLine(@"    bar width=14pt,");
+                sb.AppendLine(@"    width=0.88\textwidth,");
+                sb.AppendLine(@"    height=6.2cm,");
+                sb.AppendLine(@"    ymin=0, ymax=105,");
+                sb.AppendLine(@"    ylabel={Temperatura (\si{\celsius})},");
+                sb.AppendLine($@"    symbolic x coords={{{coordsList}}},");
+                sb.AppendLine(@"    xtick=data,");
+                sb.AppendLine(@"    x tick label style={rotate=25,anchor=east,font=\small},");
+                sb.AppendLine(@"    nodes near coords,");
+                sb.AppendLine(@"    nodes near coords align={vertical},");
+                sb.AppendLine(@"    grid=major,");
+                sb.AppendLine(@"    ymajorgrids=true,");
+                sb.AppendLine(@"    grid style={line width=.2pt,draw=gray!30}");
+                sb.AppendLine(@"]");
+                sb.AppendLine($@"    \addplot[fill=red!60!black,draw=black] coordinates {{{string.Join(" ", dataPoints)}}};");
+                sb.AppendLine(@"\end{axis}");
+                sb.AppendLine(@"\end{tikzpicture}");
+                sb.AppendLine(@"\caption{Perfil Térmico dos Sensores Principais}");
+                sb.AppendLine(@"\end{figure}");
+                sb.AppendLine();
+            }
+        }
+
+        if (d.Benchmarks.Count > 0)
+        {
+            var benchPoints = new List<string>();
+            var benchCoords = new List<string>();
+
+            for (int i = 0; i < Math.Min(6, d.Benchmarks.Count); i++)
+            {
+                var b = d.Benchmarks[i];
+                var match = System.Text.RegularExpressions.Regex.Match(b.Summary, @"\d+([.,]\d+)?");
+                if (match.Success)
+                {
+                    string numStr = match.Value.Replace(',', '.');
+                    string label = $"B{i+1}:~" + TexEscape(b.Test).Replace(" ", @"~");
+                    if (label.Length > 20) label = label.Substring(0, 20);
+                    benchCoords.Add(label);
+                    benchPoints.Add($"({label}, {numStr})");
+                }
+            }
+
+            if (benchCoords.Count > 0)
+            {
+                string bCoordsList = string.Join(", ", benchCoords);
+                sb.AppendLine(@"\begin{figure}[htbp]");
+                sb.AppendLine(@"\centering");
+                sb.AppendLine(@"\begin{tikzpicture}");
+                sb.AppendLine(@"\begin{axis}[");
+                sb.AppendLine(@"    ybar,");
+                sb.AppendLine(@"    bar width=14pt,");
+                sb.AppendLine(@"    width=0.88\textwidth,");
+                sb.AppendLine(@"    height=6.0cm,");
+                sb.AppendLine(@"    ymin=0,");
+                sb.AppendLine(@"    ylabel={Pontuação / Métrica Registrada},");
+                sb.AppendLine($@"    symbolic x coords={{{bCoordsList}}},");
+                sb.AppendLine(@"    xtick=data,");
+                sb.AppendLine(@"    x tick label style={rotate=25,anchor=east,font=\small},");
+                sb.AppendLine(@"    nodes near coords,");
+                sb.AppendLine(@"    nodes near coords align={vertical},");
+                sb.AppendLine(@"    grid=major,");
+                sb.AppendLine(@"    grid style={line width=.2pt,draw=gray!30}");
+                sb.AppendLine(@"]");
+                sb.AppendLine($@"    \addplot[fill=blue!60!black,draw=black] coordinates {{{string.Join(" ", benchPoints)}}};");
+                sb.AppendLine(@"\end{axis}");
+                sb.AppendLine(@"\end{tikzpicture}");
+                sb.AppendLine(@"\caption{Resultados dos Testes de Desempenho}");
+                sb.AppendLine(@"\end{figure}");
+            }
+        }
+    }
+
 }

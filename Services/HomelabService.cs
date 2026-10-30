@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Globalization;
 using System.IO;
 using System.Net;
@@ -40,6 +42,8 @@ public sealed class HomelabSnapshot
     public double? Fps { get; init; }
     public double? FrametimeMs { get; init; }
     public ThrottlingStatus? Throttling { get; init; }
+    public double? DpcLatencyUs { get; init; }
+    public string? DpcStatus { get; init; }
 
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 }
@@ -220,7 +224,40 @@ public sealed class HomelabService : IDisposable
                 HandleSseStream(res);
                 return;
             }
-            else if (path.Equals("/api/health", StringComparison.OrdinalIgnoreCase))
+                        else if (path.StartsWith("/api/power/", StringComparison.OrdinalIgnoreCase))
+            {
+                string subAction = path.Substring("/api/power/".Length).Trim().ToLowerInvariant();
+                string actionMsg = subAction switch
+                {
+                    "sleep" => "Comando de suspensao (Sleep) recebido. Entrando em modo de espera.",
+                    "lock" => "Sessao do Windows bloqueada.",
+                    "reboot" => "Reinicializacao agendada para 5 segundos.",
+                    "shutdown" => "Desligamento agendado para 5 segundos.",
+                    "cancel" => "Agendamento de desligamento cancelado.",
+                    _ => "Acao desconhecida. Use: sleep, lock, reboot, shutdown ou cancel."
+                };
+
+                bool isValid = subAction is "sleep" or "lock" or "reboot" or "shutdown" or "cancel";
+                if (isValid)
+                {
+                    ExecutePowerAction(subAction);
+                }
+
+                var responseObj = new
+                {
+                    status = isValid ? "ok" : "error",
+                    action = subAction,
+                    message = actionMsg,
+                    timestamp = DateTime.UtcNow
+                };
+
+                byte[] buf = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(responseObj));
+                res.ContentType = "application/json; charset=utf-8";
+                res.ContentLength64 = buf.Length;
+                res.StatusCode = isValid ? 200 : 400;
+                res.OutputStream.Write(buf, 0, buf.Length);
+            }
+else if (path.Equals("/api/health", StringComparison.OrdinalIgnoreCase))
             {
                 var health = new
                 {
@@ -293,6 +330,43 @@ public sealed class HomelabService : IDisposable
         {
             try { res.OutputStream.Close(); } catch { }
         }
+    }
+
+    
+    [DllImport("Powrprof.dll", SetLastError = true)]
+    private static extern bool SetSuspendState(bool hibernate, bool forceCritical, bool disableWakeEvent);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool LockWorkStation();
+
+    private static void ExecutePowerAction(string action)
+    {
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(600);
+            try
+            {
+                switch (action.ToLowerInvariant())
+                {
+                    case "sleep":
+                        SetSuspendState(false, true, false);
+                        break;
+                    case "lock":
+                        LockWorkStation();
+                        break;
+                    case "reboot":
+                        Process.Start(new ProcessStartInfo("shutdown.exe", "/r /t 5 /c \"ThermoSync Homelab Webhook\"") { CreateNoWindow = true, UseShellExecute = false });
+                        break;
+                    case "shutdown":
+                        Process.Start(new ProcessStartInfo("shutdown.exe", "/s /t 5 /c \"ThermoSync Homelab Webhook\"") { CreateNoWindow = true, UseShellExecute = false });
+                        break;
+                    case "cancel":
+                        Process.Start(new ProcessStartInfo("shutdown.exe", "/a") { CreateNoWindow = true, UseShellExecute = false });
+                        break;
+                }
+            }
+            catch { }
+        });
     }
 
     private static string GetDashboardHtml()
@@ -406,7 +480,24 @@ public sealed class HomelabService : IDisposable
         .badge-ok { background: rgba(46, 204, 113, 0.15); color: var(--green); }
         .badge-warn { background: rgba(241, 196, 15, 0.15); color: var(--yellow); }
         .badge-bad { background: rgba(231, 76, 60, 0.15); color: var(--red); }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+        .btn-warn { background: #3d2c00; color: #f1c40f; border-color: #664d03; }
+        .btn-warn:hover { background: #523b00; }
+        .btn-neutral { background: #1c2128; color: #adbac7; border-color: #373e47; }
+        .btn-neutral:hover { background: #2d333b; }
+        .btn-danger { background: #3c1618; color: #f85149; border-color: #672022; }
+        .btn-danger:hover { background: #4e1c1f; }
         canvas {
+
             width: 100%;
             height: 50px;
             margin-top: 10px;
@@ -479,6 +570,18 @@ public sealed class HomelabService : IDisposable
             <div id="diskList" style="display:flex;flex-direction:column;gap:8px;">
                 <div class="metric-sub" style="border:none;padding:0;">Aguardando telemetria de discos...</div>
             </div>
+        </div>
+        <!-- Power Control Card -->
+        <div class="card" style="grid-column: 1 / -1;">
+            <div class="card-title">Controle Remoto de Energia (Homelab Webhooks) <span id="dpcBadge" class="badge badge-ok">DPC: --</span></div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px;">
+                <button class="btn btn-warn" onclick="sendPowerAction('sleep', 'Deseja colocar o computador em suspensao (Sleep)?')">Suspender (Sleep)</button>
+                <button class="btn btn-neutral" onclick="sendPowerAction('lock', 'Deseja bloquear a sessao do Windows?')">Bloquear Tela</button>
+                <button class="btn btn-warn" onclick="sendPowerAction('reboot', 'Deseja reiniciar o sistema em 5 segundos?')">Reiniciar</button>
+                <button class="btn btn-danger" onclick="sendPowerAction('shutdown', 'Deseja desligar o computador em 5 segundos?')">Desligar</button>
+                <button class="btn btn-neutral" onclick="sendPowerAction('cancel', 'Cancelar desligamento agendado?')">Cancelar Desligamento</button>
+            </div>
+            <div id="powerMsg" style="margin-top: 10px; font-size: 13px; color: var(--muted);">Endpoints REST disponiveis: POST /api/power/sleep, /reboot, /lock, /shutdown, /cancel</div>
         </div>
     </div>
 
@@ -612,6 +715,21 @@ public sealed class HomelabService : IDisposable
             document.querySelector(".status-dot").style.boxShadow = "0 0 8px var(--green)";
             document.getElementById("connText").innerText = "Ao Vivo (SSE)";
         };
+    
+        function sendPowerAction(action, confirmMsg) {
+            if (confirmMsg && !confirm(confirmMsg)) return;
+            const msgEl = document.getElementById('powerMsg');
+            msgEl.textContent = 'Enviando comando para ThermoSync...';
+            fetch('/api/power/' + action, { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    msgEl.textContent = '✓ ' + (data.message || ('Comando executado: ' + data.action));
+                })
+                .catch(err => {
+                    msgEl.textContent = '✖ Falha ao comunicar com a API: ' + err;
+                });
+        }
+
     </script>
 </body>
 </html>
@@ -675,6 +793,11 @@ public sealed class HomelabService : IDisposable
         else
         {
             AppendGauge("thermosync_game_active", "Status de jogo em execucao (0 para inativo)", 0.0);
+        }
+
+        if (s.DpcLatencyUs is double dpc)
+        {
+            AppendGauge("thermosync_dpc_latency_microseconds", "Pico de latencia DPC do kernel Windows em microssegundos", dpc);
         }
 
         return sb.ToString();
