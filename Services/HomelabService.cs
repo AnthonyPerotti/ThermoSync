@@ -178,6 +178,17 @@ public sealed class HomelabService : IDisposable
 
             string path = req.Url?.AbsolutePath ?? "/";
 
+            if (path.Equals("/") || path.Equals("/dash", StringComparison.OrdinalIgnoreCase) || path.Equals("/dashboard", StringComparison.OrdinalIgnoreCase))
+            {
+                byte[] html = Encoding.UTF8.GetBytes(GetDashboardHtml());
+                res.ContentType = "text/html; charset=utf-8";
+                res.ContentLength64 = html.Length;
+                res.StatusCode = 200;
+                res.OutputStream.Write(html, 0, html.Length);
+                res.OutputStream.Close();
+                return;
+            }
+
             if (path.Equals("/metrics", StringComparison.OrdinalIgnoreCase))
             {
                 var snap = _snapshotProvider();
@@ -215,7 +226,7 @@ public sealed class HomelabService : IDisposable
                 {
                     status = "ok",
                     service = "ThermoSync",
-                    version = "1.5.8",
+                    version = "1.6.0",
                     timestamp = DateTime.UtcNow
                 };
                 string json = JsonSerializer.Serialize(health);
@@ -282,6 +293,329 @@ public sealed class HomelabService : IDisposable
         {
             try { res.OutputStream.Close(); } catch { }
         }
+    }
+
+    private static string GetDashboardHtml()
+    {
+        return """
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ThermoSync Homelab Dashboard</title>
+    <style>
+        :root {
+            --bg: #090a0f;
+            --card: #12151e;
+            --border: #232936;
+            --text: #e6edf3;
+            --muted: #8b949e;
+            --accent: #58a6ff;
+            --green: #2ecc71;
+            --yellow: #f1c40f;
+            --red: #e74c3c;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 24px;
+            line-height: 1.5;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .brand {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .brand span { color: var(--accent); }
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            background: #102a1d;
+            color: var(--green);
+            border: 1px solid #1f5137;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .card-title {
+            font-size: 13px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .metric-main {
+            font-size: 36px;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+        .metric-unit {
+            font-size: 18px;
+            color: var(--muted);
+            font-weight: 400;
+        }
+        .metric-sub {
+            font-size: 13px;
+            color: var(--muted);
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            padding-top: 8px;
+            margin-top: 8px;
+        }
+        .badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-ok { background: rgba(46, 204, 113, 0.15); color: var(--green); }
+        .badge-warn { background: rgba(241, 196, 15, 0.15); color: var(--yellow); }
+        .badge-bad { background: rgba(231, 76, 60, 0.15); color: var(--red); }
+        canvas {
+            width: 100%;
+            height: 50px;
+            margin-top: 10px;
+        }
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 32px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="brand">THERMO<span>SYNC</span> <span style="font-size:12px;color:var(--muted);font-weight:normal;">HOMELAB</span></div>
+        <div class="status-pill" id="connStatus">
+            <div class="status-dot"></div>
+            <span id="connText">Ao Vivo (SSE)</span>
+        </div>
+    </div>
+
+    <div class="grid">
+        <!-- CPU Card -->
+        <div class="card">
+            <div class="card-title">Processador (CPU) <span id="cpuClock">-- MHz</span></div>
+            <div class="metric-main"><span id="cpuTemp">--</span> <span class="metric-unit">°C</span></div>
+            <div class="metric-sub">
+                <span>Carga: <strong id="cpuLoad">--%</strong></span>
+                <span>Consumo: <strong id="cpuPower">-- W</strong></span>
+            </div>
+            <canvas id="chartCpu"></canvas>
+        </div>
+
+        <!-- GPU Card -->
+        <div class="card">
+            <div class="card-title">Placa de Vídeo (GPU) <span id="gpuClock">--</span></div>
+            <div class="metric-main"><span id="gpuTemp">--</span> <span class="metric-unit">°C</span></div>
+            <div class="metric-sub">
+                <span>Hotspot: <strong id="gpuHotspot">-- °C</strong></span>
+                <span>Consumo: <strong id="gpuPower">-- W</strong></span>
+            </div>
+            <div class="metric-sub">
+                <span>Carga: <strong id="gpuLoad">--%</strong></span>
+                <span>VRAM: <strong id="gpuVram">-- GB</strong></span>
+            </div>
+            <canvas id="chartGpu"></canvas>
+        </div>
+
+        <!-- RAM & System Card -->
+        <div class="card">
+            <div class="card-title">Memória & Throttling</div>
+            <div class="metric-main"><span id="ramUsed">--</span> <span class="metric-unit">GB</span></div>
+            <div class="metric-sub">
+                <span>Total: <strong id="ramTotal">-- GB</strong></span>
+                <span>Uso: <strong id="ramPct">--%</strong></span>
+            </div>
+            <div class="metric-sub">
+                <span>Status de Throttling:</span>
+                <span id="throtBadge" class="badge badge-ok">Normal</span>
+            </div>
+            <div class="metric-sub">
+                <span>Jogo em Execução:</span>
+                <strong id="activeGame">Nenhum</strong>
+            </div>
+        </div>
+
+        <!-- Disks Card -->
+        <div class="card">
+            <div class="card-title">Armazenamento</div>
+            <div id="diskList" style="display:flex;flex-direction:column;gap:8px;">
+                <div class="metric-sub" style="border:none;padding:0;">Aguardando telemetria de discos...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        ThermoSync v1.6.0 · Telemetria em tempo real transmitida via Server-Sent Events (/api/stream)
+    </div>
+
+    <script>
+        const cpuHistory = [];
+        const gpuHistory = [];
+        const maxPoints = 30;
+
+        function drawSparkline(canvasId, data, color) {
+            const cvs = document.getElementById(canvasId);
+            if (!cvs) return;
+            const ctx = cvs.getContext('2d');
+            const w = cvs.width = cvs.offsetWidth * window.devicePixelRatio || 300;
+            const h = cvs.height = 50 * window.devicePixelRatio || 50;
+
+            ctx.clearRect(0, 0, w, h);
+            if (data.length < 2) return;
+
+            const min = Math.min(...data) - 2;
+            const max = Math.max(...data) + 2;
+            const range = Math.max(1, max - min);
+
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2 * (window.devicePixelRatio || 1);
+            ctx.lineJoin = 'round';
+
+            for (let i = 0; i < data.length; i++) {
+                const x = (i / (maxPoints - 1)) * w;
+                const y = h - ((data[i] - min) / range) * (h - 8) - 4;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+        const evtSource = new EventSource("/api/stream");
+
+        evtSource.onmessage = function(e) {
+            try {
+                const s = JSON.parse(e.data);
+
+                // CPU
+                if (s.cpuTemp != null) {
+                    document.getElementById("cpuTemp").innerText = s.cpuTemp.toFixed(0);
+                    cpuHistory.push(s.cpuTemp);
+                    if (cpuHistory.length > maxPoints) cpuHistory.shift();
+                    drawSparkline("chartCpu", cpuHistory, s.cpuTemp > 85 ? "#e74c3c" : "#58a6ff");
+                }
+                if (s.cpuLoad != null) document.getElementById("cpuLoad").innerText = s.cpuLoad.toFixed(0) + "%";
+                if (s.cpuPowerW != null) document.getElementById("cpuPower").innerText = s.cpuPowerW.toFixed(0) + " W";
+                if (s.cpuClockMhz != null) document.getElementById("cpuClock").innerText = s.cpuClockMhz.toFixed(0) + " MHz";
+
+                // GPU
+                if (s.gpuTemp != null) {
+                    document.getElementById("gpuTemp").innerText = s.gpuTemp.toFixed(0);
+                    gpuHistory.push(s.gpuTemp);
+                    if (gpuHistory.length > maxPoints) gpuHistory.shift();
+                    drawSparkline("chartGpu", gpuHistory, s.gpuTemp > 80 ? "#e74c3c" : "#2ecc71");
+                }
+                if (s.gpuHotspot != null) document.getElementById("gpuHotspot").innerText = s.gpuHotspot.toFixed(0) + " °C";
+                if (s.gpuPowerW != null) document.getElementById("gpuPower").innerText = s.gpuPowerW.toFixed(0) + " W";
+                if (s.gpuLoad != null) document.getElementById("gpuLoad").innerText = s.gpuLoad.toFixed(0) + "%";
+                if (s.gpuVramUsedMb != null) document.getElementById("gpuVram").innerText = (s.gpuVramUsedMb / 1024).toFixed(1) + " GB";
+
+                // RAM
+                if (s.ramUsedGb != null) document.getElementById("ramUsed").innerText = s.ramUsedGb.toFixed(1);
+                if (s.ramTotalGb != null) {
+                    document.getElementById("ramTotal").innerText = s.ramTotalGb.toFixed(1) + " GB";
+                    if (s.ramUsedGb != null) {
+                        const pct = (s.ramUsedGb / s.ramTotalGb) * 100;
+                        document.getElementById("ramPct").innerText = pct.toFixed(0) + "%";
+                    }
+                }
+
+                // Throttling
+                const throtBadge = document.getElementById("throtBadge");
+                if (s.throttling && (s.throttling.isThrottling || s.throttling.shortDescription !== "Normal")) {
+                    throtBadge.innerText = s.throttling.shortDescription || "Throttling Ativo";
+                    throtBadge.className = "badge badge-bad";
+                } else {
+                    throtBadge.innerText = "Normal";
+                    throtBadge.className = "badge badge-ok";
+                }
+
+                // Active Game
+                const gameEl = document.getElementById("activeGame");
+                if (s.activeGame && s.activeGame.length > 0) {
+                    const fps = s.fps ? ` (${s.fps.toFixed(0)} FPS)` : "";
+                    gameEl.innerText = s.activeGame + fps;
+                    gameEl.style.color = "var(--green)";
+                } else {
+                    gameEl.innerText = "Nenhum";
+                    gameEl.style.color = "var(--muted)";
+                }
+
+                // Disks
+                if (s.disks && s.disks.length > 0) {
+                    const list = document.getElementById("diskList");
+                    list.innerHTML = "";
+                    s.disks.forEach(d => {
+                        const row = document.createElement("div");
+                        row.className = "metric-sub";
+                        const temp = d.temperatureCelsius ? `${d.temperatureCelsius.toFixed(0)} °C` : "--";
+                        const health = d.healthPercentage != null ? `Saúde: ${d.healthPercentage.toFixed(0)}%` : "";
+                        row.innerHTML = `<span>${d.name}</span><strong>${temp} · ${health}</strong>`;
+                        list.appendChild(row);
+                    });
+                }
+            } catch (err) { }
+        };
+
+        evtSource.onerror = function() {
+            document.getElementById("connStatus").style.background = "#2a1215";
+            document.getElementById("connStatus").style.color = "var(--red)";
+            document.getElementById("connStatus").style.borderColor = "#511f24";
+            document.querySelector(".status-dot").style.background = "var(--red)";
+            document.querySelector(".status-dot").style.boxShadow = "0 0 8px var(--red)";
+            document.getElementById("connText").innerText = "Desconectado (Reconectando...)";
+        };
+
+        evtSource.onopen = function() {
+            document.getElementById("connStatus").style.background = "#102a1d";
+            document.getElementById("connStatus").style.color = "var(--green)";
+            document.getElementById("connStatus").style.borderColor = "#1f5137";
+            document.querySelector(".status-dot").style.background = "var(--green)";
+            document.querySelector(".status-dot").style.boxShadow = "0 0 8px var(--green)";
+            document.getElementById("connText").innerText = "Ao Vivo (SSE)";
+        };
+    </script>
+</body>
+</html>
+""";
     }
 
     private static string FormatPrometheus(HomelabSnapshot s)

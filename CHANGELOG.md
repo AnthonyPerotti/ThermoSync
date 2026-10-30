@@ -1,5 +1,21 @@
 # Registro de Mudancas - ThermoSync
 
+## Versao 1.6.0
+
+### Dashboard Web Embutido (/dash e /)
+- Servidor web interno em `HomelabService.cs` agora serve uma Single Page Application (SPA) responsiva completa em `/dash` e `/`, sem dependencias externas de CDN ou internet.
+- Conexao em tempo real via Server-Sent Events (`/api/stream`) exibindo telemetria ao vivo de CPU, GPU, Hotspot, RAM, discos, throttling e jogo ativo.
+- Graficos sparkline em tempo real renderizados em Canvas nativo com JavaScript puro.
+- Acesso rapido com botao dedicado na aba de Integracao e atalho direto no menu de contexto da bandeja do sistema (System Tray).
+
+### Diagnostico de Latencia DPC e Drivers do Kernel (SYNC OPTIMIZE)
+- Criado `Hardware/LatencyWatchdog.cs` para medicao de alta precisao de jitter de despachador do Windows via `QueryPerformanceCounter` sob timers multimídia de 1 ms e agendamento de prioridade critica de thread (`TimeCritical`).
+- Avaliacao de picos de latencia de interrupcoes causados por drivers de placa de video, audio ou rede que provocam micro-stuttering e engasgos em jogos competitivos.
+- Cartao dedicado em `PageOptimize` com classificacao automatica (Excelente, Bom, Atencao ou Critico) e recomendacoes de sistema.
+
+### Relatorios Tecnicos em Codigo LaTeX (SYNC DISKS / REPORT)
+- Preambulo de exportacao `.tex` em `ReportBuilder.cs` enriquecido com os pacotes `siunitx` e `pgfplots` (compatibilidade 1.18) para documentacao academica e bancada de engenharia.
+
 ## Versao 1.5.8
 
 ### Aprimoramento do Botao de Atualizacao no Cabecalho

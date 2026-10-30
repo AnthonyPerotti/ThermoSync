@@ -483,6 +483,20 @@ public partial class MainWindow
         }
     }
 
+    private void BtnOpenWebDash_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            int port = _settings.HomelabPrometheusPort;
+            string url = $"http://localhost:{port}/dash";
+            Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Não foi possível abrir o dashboard: {ex.Message}", "ThermoSync Homelab", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
     private void InitHomelabUi()
     {
         ChkPrometheus.IsChecked = _settings.HomelabPrometheusEnabled;

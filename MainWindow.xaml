@@ -1077,6 +1077,9 @@
                                     <TextBox x:Name="TxtPrometheusPort" Width="60" Text="9182" VerticalAlignment="Center" Height="26" Padding="6,2"/>
                                 </StackPanel>
                                 <TextBlock x:Name="TxtPrometheusStatus" Text="Desativado" Foreground="{DynamicResource Muted}" Margin="0,2,0,10"/>
+                                <Button x:Name="BtnOpenWebDash" Style="{StaticResource OutlineButton}" Content="ABRIR DASHBOARD WEB"
+                                        Padding="14,4" Margin="0,0,10,12" HorizontalAlignment="Left" Click="BtnOpenWebDash_Click"
+                                        ToolTip="Abre o painel em tempo real no navegador padrão (porta configurada)"/>
 
                                 <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,4,0,10" Padding="0,10,0,0">
                                     <StackPanel>
@@ -2530,6 +2533,27 @@
                             <TextBlock Text="SYNC OPTIMIZE" Style="{StaticResource H1}"/>
                             <TextBlock Text="Libera memória, fecha o que atrapalha e ajusta o Windows para jogos" Style="{StaticResource Sub}"/>
                         </StackPanel>
+
+                        <!-- Diagnóstico de Latência DPC / Drivers -->
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14" Padding="20,18">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Diagnóstico de Latência DPC e Drivers" FontWeight="SemiBold" FontSize="15"/>
+                                        <TextBlock Text="Avalia se algum driver do sistema (GPU, áudio ou rede) está causando micro-stuttering e atrasos no agendamento de tarefas"
+                                                   Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <Button x:Name="BtnTestLatency" Grid.Column="1" Style="{StaticResource PrimaryButton}"
+                                            Content="TESTAR LATÊNCIA (3s)" Padding="16,6" Click="BtnTestLatency_Click"/>
+                                </Grid>
+                                <TextBlock x:Name="TxtLatencyResult" Text="Nenhum teste executado ainda. Clique para verificar a resposta do sistema operacional em tempo real."
+                                           Foreground="{DynamicResource Faint}" FontSize="12" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
 
                         <!-- Botão principal -->
                         <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14" Padding="24,20">

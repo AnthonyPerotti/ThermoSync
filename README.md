@@ -42,14 +42,18 @@ O software divide suas funcoes em modulos especializados:
 - **Relatorio de Sessao Pos-Jogo:** Contabilizacao automatica da duracao da sessao e exibicao de notificacao com resumo de encerramento da partida.
 - **Estimativa e Diagnostico de Gargalo (`Hardware/BottleneckAnalyzer.cs`, `Utils/GameCatalog.cs`):** Analise comparativa de balanco entre capacidade computacional de CPU e GPU, monitoramento de tempos ociosos e deteccao de estrangulamento termico.
 
-### 5. Otimizacao e Gerenciamento de Sistema (SYNC OPTIMIZE / SYNC TOOLS)
+### 5. Otimizacao e Gerenciamento de Sistema
+- **Diagnostico de Latencia de Drivers e DPC (`Hardware/LatencyWatchdog.cs`):** Avaliacao de jitter de despacho de interrupcoes do kernel via `QueryPerformanceCounter` com temporizacao de alta resolucao em thread critica, apontando se drivers de video, rede ou armazenamento estao monopolizando ciclos de CPU e causando micro-travamentos (stutters) em jogos.
+ (SYNC OPTIMIZE / SYNC TOOLS)
 - **Gerenciamento de Memoria (`Services/Optimizer.cs`):** Chamadas diretas as APIs nativas do Windows (`NtSetSystemInformation` e esvaziamento de Working Set) para liberacao de listas de paginas em espera (Standby List) e processos ociosos.
 - **Ajustes de Sistema Operacional (`Services/WindowsTweaks.cs`):** Controle de chaves de registro para ativacao de Hardware Accelerated GPU Scheduling (HAGS), Game Mode, desativacao de Game DVR e ajuste de fila de resposta de entrada do mouse.
 - **Inicializacao do Windows com Previlegios Elevados (`MainWindow.Settings.cs`):** Registro de inicializacao com o Windows via Agendador de Tarefas (`schtasks.exe`) com XML v1.2 em nivel `HighestAvailable`, contornando o bloqueio silencioso do UAC no logon do usuario.
 - **Instalador de Aplicativos (`Utils/AppInstaller.cs`):** Automacao de instalacao via Windows Package Manager (winget) com resolucao de caminhos absolutos e suporte a instalacao sem conexao.
 - **Relatorios de Diagnostico (`Utils/ReportBuilder.cs`):** Exportacao em HTML visual escuro, Markdown padronizado (.md) para documentacao, JSON estruturado e codigo LaTeX com tabelas booktabs/tabularx.
 
-### 6. Integracao Homelab e Automacao (`Services/HomelabService.cs`, `Services/AlertWebhookService.cs`, `Services/NetworkTest.cs`)
+### 6. Integracao Homelab e Automacao
+- **Dashboard Web Embutido (/dash):** Servidor HTTP interno servindo painel SPA responsivo para monitoramento em tempo real a partir de qualquer dispositivo na rede local (celular, tablet ou painel no ZimaOS/Homelab) consumindo o fluxo continuo SSE sem necessidade de stack externa.
+ (`Services/HomelabService.cs`, `Services/AlertWebhookService.cs`, `Services/NetworkTest.cs`)
 - **API REST e Telemetria HTTP (`Services/HomelabService.cs`):** Endpoints HTTP internos em `/api/telemetry` (payload JSON com telemetria completa, dados de throttling e jogos) e `/api/health`, com cabecalhos CORS liberados para integracao com navegadores e dashboards locais.
 - **Stream Continuo Server-Sent Events (`/api/stream`):** Fornece fluxo de dados HTTP em tempo real (`text/event-stream`) a 1 Hz com snapshots JSON para graficos ao vivo e paineis web de monitoramento sem necessidade de polling manual.
 - **Exportador Prometheus (/metrics):** Servidor HTTP interno assincrono expondo telemetria completa em formato OpenMetrics na porta 9182 (temperaturas, consumo eletrico em Watts, clocks, uso de VRAM/RAM, saude S.M.A.R.T. e carga dos discos, estados de throttling e FPS de jogos).

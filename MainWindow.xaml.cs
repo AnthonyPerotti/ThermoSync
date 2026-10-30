@@ -525,6 +525,12 @@ try {
         var miStatus = new MenuItem { Header = "Homelab Prometheus (Porta 9182)" };
         miStatus.Click += (_, _) => RestoreFromTray("PageInteg");
 
+        var miWebDash = new MenuItem { Header = "Dashboard Web (Navegador)" };
+        miWebDash.Click += (_, _) =>
+        {
+            try { Process.Start(new ProcessStartInfo { FileName = $"http://localhost:{_settings.HomelabPrometheusPort}/dash", UseShellExecute = true }); } catch { }
+        };
+
         var miFans = new MenuItem { Header = "Ventoinhas: Perfis e Curvas" };
         miFans.Click += (_, _) => RestoreFromTray("PageFans");
 
@@ -1948,6 +1954,32 @@ try {
     private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint modifiers, uint vk);
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+    private async void BtnTestLatency_Click(object sender, RoutedEventArgs e)
+    {
+        BtnTestLatency.IsEnabled = false;
+        TxtLatencyResult.Text = "Medindo latência de agendamento de DPCs e interrupções do kernel em alta resolução (3 segundos)…";
+        try
+        {
+            var res = await LatencyWatchdog.TestLatencyAsync(TimeSpan.FromSeconds(3));
+            string badge = res.Status switch
+            {
+                "EXCELENTE" => "✓ EXCELENTE",
+                "BOM" => "✓ BOM",
+                "ATENÇÃO" => "⚠ ATENÇÃO",
+                _ => "✖ CRÍTICO"
+            };
+            TxtLatencyResult.Text = $"{badge}: Pico de {res.MaxLatencyUs:0} µs (Média: {res.AvgLatencyUs:0} µs · Jitter: {res.JitterUs:0} µs)\n{res.Summary}";
+        }
+        catch (Exception ex)
+        {
+            TxtLatencyResult.Text = $"Falha ao medir latência: {ex.Message}";
+        }
+        finally
+        {
+            BtnTestLatency.IsEnabled = true;
+        }
+    }
 
     // ---------------- Sensores ----------------
 
