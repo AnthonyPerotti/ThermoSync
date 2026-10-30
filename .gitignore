@@ -1,23 +1,39 @@
-# Build
+# Build & Binaries
 bin/
 obj/
 publish/
+dist/
 ThermoSync-dist/
 *.exe
 *.dll
 *.pdb
-dist/
+*.msi
+*.appx
 
-# IDE
+# IDE & Editor Files
 .vs/
 .vscode/
 .agents/
+.idea/
 *.user
 *.suo
+*.userosscache
+*.sln.docstates
 
-# Local
+# OS & Environment
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.tmp
+*.temp
 *.log
+
+# Test & Coverage Outputs
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
 
 # Embedded serial drivers (SYNC MAKER): signed package DLLs are intentionally tracked
 !Drivers/**
-
