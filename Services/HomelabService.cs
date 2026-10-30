@@ -215,7 +215,7 @@ public sealed class HomelabService : IDisposable
                 {
                     status = "ok",
                     service = "ThermoSync",
-                    version = "1.5.7",
+                    version = "1.5.8",
                     timestamp = DateTime.UtcNow
                 };
                 string json = JsonSerializer.Serialize(health);
