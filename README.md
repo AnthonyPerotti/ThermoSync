@@ -16,7 +16,7 @@ O software divide suas funcoes em modulos especializados:
 
 ### 2. Controle Ativo de Ventoinhas (SYNC FAN)
 - **Gerenciamento PWM (`Services/FanControlService.cs`):** Controle direto de curva e velocidade de ventiladores de placa-mae e GPU suportados via interfaces `IControl`.
-- **Perfis Termicos Dinamicos:** Modos Automatico, Silencioso (Quiet), Equilibrado (Balanced), Desempenho (Performance), Extremo (100% PWM), Manual (Fixo com slider percentual) e Curva Customizada.
+- **Perfis Termicos Dinamicos:** Modos Automatico, Silencioso (Quiet), Equilibrado (Balanced), Desempenho (Performance), Extremo (100% PWM), Zero Fan (0 RPM abaixo de 50 C), Manual (Fixo com slider percentual de 0% a 100%) e Curva Customizada.
 - **Histerese Termica e Amortecimento Acustico:** Histerese configuravel (padrao 3 C) e rampa suave de desaceleracao (ramp-down amortecido) para evitar aceleracoes bruscas (fan revving) em limiares de temperatura, com resposta imediata para subidas termicas.
 - **Watchdog de Ventoinhas Travadas:** Monitoramento de seguranca que detecta falhas mecanicas ou bloqueios fisicos quando o comando PWM permanece acima de 35% com rotacao nula (0 RPM) por 5 ciclos consecutivos, com notificacao tray balloon no Windows alertando o usuario sobre a ventoinha afetada.
 - **Curva Customizada via Software:** Calibracao de 4 pontos termicos PWM (35 C a 85 C) com selecao de sensor de referencia (CPU, GPU ou o maior entre ambos) e interpolacao linear continua.

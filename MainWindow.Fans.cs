@@ -26,6 +26,12 @@ public partial class MainWindow
             case "performance":
                 BtnFanPerformance.IsChecked = true;
                 break;
+            case "extreme":
+                BtnFanExtreme.IsChecked = true;
+                break;
+            case "zerofan":
+                BtnFanZero.IsChecked = true;
+                break;
             case "manual":
                 BtnFanManual.IsChecked = true;
                 break;
@@ -38,7 +44,7 @@ public partial class MainWindow
         }
 
         SliderFanManual.Value = _settings.FanManualPct;
-        TxtFanManualVal.Text = $"{_settings.FanManualPct}%";
+        TxtFanManualVal.Text = _settings.FanManualPct == 0 ? "0% (Zero Fan)" : $"{_settings.FanManualPct}%";
         PanelFanManual.Visibility = BtnFanManual.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
         if (_settings.FanCurveSource.Equals("Cpu", StringComparison.OrdinalIgnoreCase))
@@ -117,8 +123,10 @@ public partial class MainWindow
 
     private void UpdateCurveLabels()
     {
-        if (TxtCurveP1 != null) TxtCurveP1.Text = $"Repouso ({_settings.FanCurveP1Temp} °C): {_settings.FanCurveP1Pct}%";
-        if (TxtCurveP2 != null) TxtCurveP2.Text = $"Carga Leve ({_settings.FanCurveP2Temp} °C): {_settings.FanCurveP2Pct}%";
+        string p1Str = _settings.FanCurveP1Pct == 0 ? "0% (Zero Fan)" : $"{_settings.FanCurveP1Pct}%";
+        string p2Str = _settings.FanCurveP2Pct == 0 ? "0% (Zero Fan)" : $"{_settings.FanCurveP2Pct}%";
+        if (TxtCurveP1 != null) TxtCurveP1.Text = $"Repouso ({_settings.FanCurveP1Temp} °C): {p1Str}";
+        if (TxtCurveP2 != null) TxtCurveP2.Text = $"Carga Leve ({_settings.FanCurveP2Temp} °C): {p2Str}";
         if (TxtCurveP3 != null) TxtCurveP3.Text = $"Carga Alta ({_settings.FanCurveP3Temp} °C): {_settings.FanCurveP3Pct}%";
         if (TxtCurveP4 != null) TxtCurveP4.Text = $"Crítico ({_settings.FanCurveP4Temp} °C): {_settings.FanCurveP4Pct}%";
         if (TxtCurveHysteresis != null) TxtCurveHysteresis.Text = $"Histerese Acústica: {_settings.FanCurveHysteresis} °C (Evita oscilação de aceleração/desaceleração no limiar)";
@@ -141,7 +149,7 @@ public partial class MainWindow
     private void SliderFanManual_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         int val = (int)Math.Round(SliderFanManual.Value);
-        if (TxtFanManualVal != null) TxtFanManualVal.Text = $"{val}%";
+        if (TxtFanManualVal != null) TxtFanManualVal.Text = val == 0 ? "0% (Zero Fan)" : $"{val}%";
 
         _settings.FanManualPct = val;
         _settings.Save();

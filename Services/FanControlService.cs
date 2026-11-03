@@ -200,7 +200,7 @@ public sealed class FanControlService : IDisposable
                             break;
 
                         case "manual":
-                            float targetManual = Math.Clamp(manualPct, 15f, 100f);
+                            float targetManual = Math.Clamp(manualPct, 0f, 100f);
                             fan.Control.SetSoftware(targetManual);
                             fan.ControlPercent = targetManual;
                             fan.Mode = "Manual";
@@ -223,6 +223,20 @@ public sealed class FanControlService : IDisposable
                             fan.Control.SetSoftware(customTarget);
                             fan.ControlPercent = customTarget;
                             fan.Mode = "Personalizado";
+                            break;
+
+                        case "zerofan":
+                            // Zero Fan (Zero RPM) profile: 0% up to 50C for total silence, then smooth curve
+                            float rawZero = InterpolateCurve(maxTemp,
+                                (35f, 0f),
+                                (50f, 0f),
+                                (60f, 35f),
+                                (72f, 65f),
+                                (85f, 100f));
+                            float zeroTarget = SmoothPwm(fan.Id, rawZero, maxTemp, hysteresis, maxRampDownPerSec, deltaSec);
+                            fan.Control.SetSoftware(zeroTarget);
+                            fan.ControlPercent = zeroTarget;
+                            fan.Mode = "Zero Fan";
                             break;
 
                         case "quiet":

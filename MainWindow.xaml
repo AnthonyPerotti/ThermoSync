@@ -1318,7 +1318,49 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- 2. HISTÓRICO DE TELEMETRIA -->
+                        <!-- 2. ALERTAS & NOTIFICAÇÕES DE HARDWARE -->
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="ALERTAS &amp; NOTIFICAÇÕES DE HARDWARE" Style="{StaticResource Label}"/>
+
+                                <TextBlock Text="Notificações no Windows e Limites de Temperatura" FontSize="14" FontWeight="SemiBold" Margin="0,8,0,2"/>
+                                <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10">
+                                    Dispara balões de aviso na área de notificação do Windows quando os limites forem ultrapassados ou caso a ventoinha da CPU pare sem comando prévio.
+                                </TextBlock>
+
+                                <WrapPanel Margin="0,0,0,12">
+                                    <CheckBox x:Name="ChkAlertLocal" Content="Ativar notificações na bandeja do Windows" VerticalAlignment="Center" Margin="0,0,20,6" Click="ChkAlertLocal_Click"/>
+                                    <CheckBox x:Name="ChkAlertFanStall" Content="Alertar se a ventoinha da CPU estiver em 0 RPM (Possível Defeito)" VerticalAlignment="Center" Margin="0,0,20,6" Click="ChkAlertFanStall_Click"/>
+                                </WrapPanel>
+
+                                <TextBlock Text="Limiares de Disparo de Alerta:" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,2,0,6"/>
+                                <WrapPanel Margin="0,0,0,10">
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,16,6">
+                                        <TextBlock Text="CPU Máx (°C):" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" Margin="0,0,6,0"/>
+                                        <TextBox x:Name="TxtSettingsAlertCpu" Width="55" Text="90" Height="26" Padding="6,2" LostFocus="TxtSettingsAlert_LostFocus"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,16,6">
+                                        <TextBlock Text="GPU Máx (°C):" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" Margin="0,0,6,0"/>
+                                        <TextBox x:Name="TxtSettingsAlertGpu" Width="55" Text="85" Height="26" Padding="6,2" LostFocus="TxtSettingsAlert_LostFocus"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,16,6">
+                                        <TextBlock Text="Hotspot Máx (°C):" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" Margin="0,0,6,0"/>
+                                        <TextBox x:Name="TxtSettingsAlertHotspot" Width="55" Text="95" Height="26" Padding="6,2" LostFocus="TxtSettingsAlert_LostFocus"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,16,6">
+                                        <TextBlock Text="RAM Máx (%):" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" Margin="0,0,6,0"/>
+                                        <TextBox x:Name="TxtSettingsAlertRam" Width="55" Text="95" Height="26" Padding="6,2" LostFocus="TxtSettingsAlert_LostFocus"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,16,6">
+                                        <TextBlock Text="Intervalo (min):" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" Margin="0,0,6,0"/>
+                                        <TextBox x:Name="TxtSettingsAlertCooldown" Width="45" Text="5" Height="26" Padding="6,2" LostFocus="TxtSettingsAlert_LostFocus"/>
+                                    </StackPanel>
+                                </WrapPanel>
+                                <TextBlock x:Name="TxtSettingsAlertStatus" Text="" Foreground="{DynamicResource Muted}" FontSize="11"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 3. HISTÓRICO DE TELEMETRIA -->
                         <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
                             <StackPanel>
                                 <TextBlock Text="HISTÓRICO DE TELEMETRIA" Style="{StaticResource Label}"/>
@@ -1337,7 +1379,7 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- 3. BACKUP DE CONFIGURAÇÕES -->
+                        <!-- 4. BACKUP DE CONFIGURAÇÕES -->
                         <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
                             <StackPanel>
                                 <TextBlock Text="BACKUP &amp; RESTAURAÇÃO" Style="{StaticResource Label}"/>
@@ -1354,7 +1396,7 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- 4. ATUALIZAÇÕES DA APLICAÇÃO -->
+                        <!-- 5. ATUALIZAÇÕES DA APLICAÇÃO -->
                         <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
                             <StackPanel>
                                 <TextBlock Text="ATUALIZAÇÃO DO SISTEMA" Style="{StaticResource Label}"/>
@@ -3424,6 +3466,8 @@
                                     <RadioButton x:Name="BtnFanQuiet" Style="{StaticResource Chip}" GroupName="FanProfiles" Content="Silencioso" Tag="Quiet" Checked="FanMode_Checked"/>
                                     <RadioButton x:Name="BtnFanBalanced" Style="{StaticResource Chip}" GroupName="FanProfiles" Content="Equilibrado" Tag="Balanced" Checked="FanMode_Checked"/>
                                     <RadioButton x:Name="BtnFanPerformance" Style="{StaticResource Chip}" GroupName="FanProfiles" Content="Desempenho" Tag="Performance" Checked="FanMode_Checked"/>
+                                    <RadioButton x:Name="BtnFanExtreme" Style="{StaticResource Chip}" GroupName="FanProfiles" Content="Extremo (100%)" Tag="Extreme" Checked="FanMode_Checked"/>
+                                    <RadioButton x:Name="BtnFanZero" Style="{StaticResource Chip}" GroupName="FanProfiles" Content="Zero Fan (0 RPM)" Tag="ZeroFan" Checked="FanMode_Checked"/>
                                     <RadioButton x:Name="BtnFanManual" Style="{StaticResource Chip}" GroupName="FanProfiles" Content="Manual (Fixo)" Tag="Manual" Checked="FanMode_Checked"/>
                                     <RadioButton x:Name="BtnFanCustom" Style="{StaticResource Chip}" GroupName="FanProfiles" Content="Curva Customizada" Tag="Custom" Checked="FanMode_Checked"/>
                                 </WrapPanel>
@@ -3431,7 +3475,9 @@
                                     • Silencioso: rotação mínima até 55 °C para silêncio acústico, escalando até 100% aos 85 °C.&#x0a;
                                     • Equilibrado: rotação balanceada garantindo fluxo contínuo e subida aos 60 °C.&#x0a;
                                     • Desempenho: alta pressão de ar para manter temperaturas baixas durante sessões de carga e jogos.&#x0a;
-                                    • Manual (Fixo): trava a velocidade de todas as ventoinhas no percentual exato selecionado.&#x0a;
+                                    • Extremo: força 100% de PWM contínuo em todas as ventoinhas para máxima refrigeração.&#x0a;
+                                    • Zero Fan (0 RPM): desliga totalmente as ventoinhas em repouso até 50 °C para silêncio acústico absoluto.&#x0a;
+                                    • Manual (Fixo): trava a velocidade de todas as ventoinhas no percentual exato selecionado (suporta 0% / Zero Fan).&#x0a;
                                     • Curva Customizada: calibra curvas térmicas personalizadas em 4 estágios baseadas na CPU, GPU ou maior temperatura.&#x0a;
                                     • Padrão (Auto): devolve o controle ao BIOS da placa-mãe e firmware da placa de vídeo.
                                 </TextBlock>
@@ -3444,7 +3490,7 @@
                                             <ColumnDefinition Width="*"/>
                                              <ColumnDefinition Width="60"/>
                                         </Grid.ColumnDefinitions>
-                                        <Slider x:Name="SliderFanManual" Minimum="15" Maximum="100" Value="60" SmallChange="5" LargeChange="10"
+                                        <Slider x:Name="SliderFanManual" Minimum="0" Maximum="100" Value="60" SmallChange="5" LargeChange="10"
                                                 VerticalAlignment="Center" ValueChanged="SliderFanManual_ValueChanged"/>
                                         <TextBlock x:Name="TxtFanManualVal" Grid.Column="1" Text="60%" FontWeight="SemiBold"
                                                    HorizontalAlignment="Right" VerticalAlignment="Center"/>
@@ -3463,11 +3509,11 @@
                                     <UniformGrid Columns="2" Margin="0,0,0,4">
                                         <StackPanel Margin="0,0,8,8">
                                             <TextBlock x:Name="TxtCurveP1" Text="Repouso (35 °C): 25%" FontSize="11" Foreground="{DynamicResource Muted}"/>
-                                            <Slider x:Name="SliderCurveP1" Minimum="15" Maximum="100" Value="25" ValueChanged="SliderCurve_ValueChanged"/>
+                                            <Slider x:Name="SliderCurveP1" Minimum="0" Maximum="100" Value="25" ValueChanged="SliderCurve_ValueChanged"/>
                                         </StackPanel>
                                         <StackPanel Margin="8,0,0,8">
                                             <TextBlock x:Name="TxtCurveP2" Text="Carga Leve (55 °C): 45%" FontSize="11" Foreground="{DynamicResource Muted}"/>
-                                            <Slider x:Name="SliderCurveP2" Minimum="15" Maximum="100" Value="45" ValueChanged="SliderCurve_ValueChanged"/>
+                                            <Slider x:Name="SliderCurveP2" Minimum="0" Maximum="100" Value="45" ValueChanged="SliderCurve_ValueChanged"/>
                                         </StackPanel>
                                         <StackPanel Margin="0,4,8,4">
                                             <TextBlock x:Name="TxtCurveP3" Text="Carga Alta (70 °C): 70%" FontSize="11" Foreground="{DynamicResource Muted}"/>

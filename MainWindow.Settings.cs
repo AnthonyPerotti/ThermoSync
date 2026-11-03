@@ -25,6 +25,14 @@ public partial class MainWindow
         ChkMinimizeToTray.IsChecked = _settings.MinimizeToTray;
         ChkCloseToTray.IsChecked = _settings.CloseToTray;
 
+        ChkAlertLocal.IsChecked = _settings.AlertLocalEnabled;
+        ChkAlertFanStall.IsChecked = _settings.AlertFanStallEnabled;
+        TxtSettingsAlertCpu.Text = _settings.AlertThresholdCpuTemp.ToString("0.#");
+        TxtSettingsAlertGpu.Text = _settings.AlertThresholdGpuTemp.ToString("0.#");
+        TxtSettingsAlertHotspot.Text = _settings.AlertThresholdGpuHotspot.ToString("0.#");
+        TxtSettingsAlertRam.Text = _settings.AlertThresholdRamPct.ToString("0.#");
+        TxtSettingsAlertCooldown.Text = _settings.AlertCooldownMinutes.ToString();
+
         ChkTelemetryLog.IsChecked = _settings.TelemetryLogEnabled;
         UpdateTelemetryStatusUi();
 
@@ -389,5 +397,62 @@ public partial class MainWindow
     private async void BtnInstallUpdate_Click(object sender, RoutedEventArgs e)
     {
         await StartDownloadAndUpdateAsync();
+    }
+
+    private void ChkAlertLocal_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.AlertLocalEnabled = ChkAlertLocal.IsChecked == true;
+        _settings.Save();
+        if (TxtSettingsAlertStatus != null)
+            TxtSettingsAlertStatus.Text = _settings.AlertLocalEnabled ? "Notificações na bandeja ativadas." : "Notificações na bandeja desativadas.";
+    }
+
+    private void ChkAlertFanStall_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.AlertFanStallEnabled = ChkAlertFanStall.IsChecked == true;
+        _settings.Save();
+        if (TxtSettingsAlertStatus != null)
+            TxtSettingsAlertStatus.Text = _settings.AlertFanStallEnabled ? "Alerta de ventoinha em 0 RPM ativado." : "Alerta de ventoinha em 0 RPM desativado.";
+    }
+
+    private void TxtSettingsAlert_LostFocus(object sender, RoutedEventArgs e)
+    {
+        bool changed = false;
+        if (double.TryParse(TxtSettingsAlertCpu?.Text.Trim(), out double cpu) && cpu > 30)
+        {
+            _settings.AlertThresholdCpuTemp = cpu;
+            if (TxtAlertCpu != null) TxtAlertCpu.Text = cpu.ToString("0.#");
+            changed = true;
+        }
+        if (double.TryParse(TxtSettingsAlertGpu?.Text.Trim(), out double gpu) && gpu > 30)
+        {
+            _settings.AlertThresholdGpuTemp = gpu;
+            if (TxtAlertGpu != null) TxtAlertGpu.Text = gpu.ToString("0.#");
+            changed = true;
+        }
+        if (double.TryParse(TxtSettingsAlertHotspot?.Text.Trim(), out double hot) && hot > 30)
+        {
+            _settings.AlertThresholdGpuHotspot = hot;
+            if (TxtAlertHotspot != null) TxtAlertHotspot.Text = hot.ToString("0.#");
+            changed = true;
+        }
+        if (double.TryParse(TxtSettingsAlertRam?.Text.Trim(), out double ram) && ram >= 50 && ram <= 100)
+        {
+            _settings.AlertThresholdRamPct = ram;
+            if (TxtAlertRam != null) TxtAlertRam.Text = ram.ToString("0.#");
+            changed = true;
+        }
+        if (int.TryParse(TxtSettingsAlertCooldown?.Text.Trim(), out int cd) && cd >= 1 && cd <= 60)
+        {
+            _settings.AlertCooldownMinutes = cd;
+            changed = true;
+        }
+
+        if (changed)
+        {
+            _settings.Save();
+            if (TxtSettingsAlertStatus != null)
+                TxtSettingsAlertStatus.Text = "Limiares de alerta salvos com sucesso.";
+        }
     }
 }

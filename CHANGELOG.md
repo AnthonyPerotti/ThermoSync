@@ -1,5 +1,18 @@
 ﻿# Registro de Mudancas - ThermoSync
 
+## Versao 1.6.5
+
+### Perfis Extremo e Zero Fan no SYNC FAN
+- Adicionados os chips de selecao `Extremo (100%)` e `Zero Fan (0 RPM)` diretamente na interface da pagina principal de ventoinhas (SYNC FAN).
+- Implementado o modo `ZeroFan` no `FanControlService.cs`, mantendo as ventoinhas totalmente desligadas (0% PWM / 0 RPM) em temperaturas de repouso abaixo de 50 C, acionando rampa progressiva e segura a partir de 50 C.
+- Expandida a faixa de ajuste dos controles manuais e de curva termica: os sliders de velocidade manual e pontos de repouso (P1 e P2) agora descem ate 0% de PWM, permitindo configuracao personalizada de Zero Fan sem bloqueio de valor minimo anterior (15%).
+
+### Central de Notificacoes e Limiares de Alerta nas Configuracoes (SYNC SETTINGS)
+- Criado um novo cartao dedicado "ALERTAS & NOTIFICACOES DE HARDWARE" na tela de Configuracoes.
+- Adicionada opcao para ativar ou desativar individualmente o alerta de ventoinha da CPU parada (0 RPM / possivel defeito).
+- Disponibilizados campos diretos e acessiveis para definir os limiares de alerta de temperatura de CPU, GPU, Hotspot, uso de RAM e intervalo entre disparos (cooldown), sem necessidade de navegar para abas de integracao remota.
+- Sincronizacao bidirecional instantanea dos limites com persistencia automatica no arquivo de configuracoes.
+
 ## Versao 1.6.4
 
 ### Sistema de Alertas Locais Independente de Webhooks (SYNC SETTINGS)
