@@ -1,4 +1,22 @@
-# Registro de Mudancas - ThermoSync
+﻿# Registro de Mudancas - ThermoSync
+
+## Versao 1.6.4
+
+### Sistema de Alertas Locais Independente de Webhooks (SYNC SETTINGS)
+- Desacoplamento completo do sistema de notificacoes locais (tray balloon) dos webhooks de alerta (Gotify, Discord, Telegram). Alertas de temperatura, RAM e ventoinha travada agora disparam notificacoes do Windows sem exigir configuracao de nenhum webhook remoto.
+- Adicionadas duas novas configuracoes em `AppSettings.cs`: `AlertLocalEnabled` (padrao ativado) para habilitar/desabilitar notificacoes locais e `AlertFanStallEnabled` (padrao ativado) para controlar o alerta de ventoinha travada.
+
+### Alerta de Ventoinha Travada via Notificacao do Windows (SYNC FAN)
+- Implementada a subscricao do evento `OnFanStalled` do `FanControlService` diretamente no loop de telemetria principal, garantindo deteccao de stall em todos os ciclos de monitoramento (nao apenas quando a aba de ventoinhas esta visivel).
+- Quando uma ventoinha esta com comando PWM acima de 35% e RPM zerado por 5 ciclos consecutivos, uma notificacao tray balloon e exibida com o nome da ventoinha afetada e o percentual de PWM comandado.
+
+### Registro Duplo de Inicializacao com o Windows (SYNC SETTINGS)
+- Reimplementado `SetStartWithWindows()` para registrar simultaneamente a chave `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` com entrada `StartupApproved\Run` (valor binario 0x02 = habilitado) e a tarefa agendada via Task Scheduler com `RunLevel: HighestAvailable`.
+- A chave de registro garante exibicao na aba "Aplicativos de Inicializacao" do Gerenciador de Tarefas, enquanto o Task Scheduler garante a execucao elevada sem bloqueio do UAC.
+- `IsStartWithWindowsEnabled()` agora verifica a chave Run primeiro (mais confiavel para visibilidade no Task Manager), com fallback para o Task Scheduler.
+
+### Fechar para a Bandeja Desativado por Padrao (SYNC SETTINGS)
+- Alterado o valor padrao de `CloseToTray` de `true` para `false` em `AppSettings.cs`. Novos usuarios iniciam com o comportamento padrao de fechar o programa ao clicar no X, sem precisar desmarcar manualmente a opcao.
 
 ## Versao 1.6.3
 

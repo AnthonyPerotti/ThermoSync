@@ -4,6 +4,7 @@ obj/
 publish/
 dist/
 ThermoSync-dist/
+*_wpftmp.csproj
 *.exe
 *.dll
 *.pdb

@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Media;
@@ -34,7 +34,15 @@ public partial class MainWindow
 
     private static bool IsStartWithWindowsEnabled()
     {
-        // Primary: check Task Scheduler (works with requireAdministrator manifest)
+        // Check HKCU Run key first (reliable indicator for Task Manager visibility)
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(RunRegistryKey, false);
+            if (key?.GetValue(AppRunName) != null) return true;
+        }
+        catch { }
+
+        // Fallback: check Task Scheduler (may exist without Run key from older versions)
         try
         {
             var psi = new ProcessStartInfo("schtasks.exe", $"/query /tn \"{TaskName}\" /fo LIST")
@@ -45,38 +53,40 @@ public partial class MainWindow
         }
         catch { }
 
-        // Fallback: legacy Run key (for migration)
-        try
-        {
-            using var key = Registry.CurrentUser.OpenSubKey(RunRegistryKey, false);
-            return key?.GetValue(AppRunName) != null;
-        }
-        catch { return false; }
+        return false;
     }
 
     private void SetStartWithWindows(bool enable)
     {
-        // Clean up legacy Run key (can't launch requireAdministrator apps at logon)
-        try
-        {
-            using var key = Registry.CurrentUser.OpenSubKey(RunRegistryKey, true);
-            key?.DeleteValue(AppRunName, false);
-        }
-        catch { }
+        string exePath = Environment.ProcessPath
+            ?? Process.GetCurrentProcess().MainModule?.FileName
+            ?? "";
+        if (string.IsNullOrEmpty(exePath)) return;
+
+        string args = _settings.StartMinimized ? "--minimized" : "";
 
         if (enable)
         {
+            // 1. HKCU Run key + StartupApproved: shows in Task Manager "Startup Apps"
             try
             {
-                string exePath = Environment.ProcessPath
-                    ?? Process.GetCurrentProcess().MainModule?.FileName
-                    ?? "";
-                if (string.IsNullOrEmpty(exePath)) return;
+                using var runKey = Registry.CurrentUser.OpenSubKey(RunRegistryKey, true)
+                    ?? Registry.CurrentUser.CreateSubKey(RunRegistryKey);
+                string cmdLine = string.IsNullOrEmpty(args) ? $"\"{exePath}\"" : $"\"{exePath}\" {args}";
+                runKey.SetValue(AppRunName, cmdLine);
 
-                string args = _settings.StartMinimized ? "--minimized" : "";
+                // Mark as enabled in StartupApproved (0x02 prefix = enabled)
+                const string approvedKey = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
+                using var approved = Registry.CurrentUser.OpenSubKey(approvedKey, true)
+                    ?? Registry.CurrentUser.CreateSubKey(approvedKey);
+                approved.SetValue(AppRunName, new byte[] { 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, RegistryValueKind.Binary);
+            }
+            catch { }
+
+            // 2. Task Scheduler: actual elevated startup (bypasses UAC for requireAdministrator)
+            try
+            {
                 string ns = "http://schemas.microsoft.com/windows/2004/02/mit/task";
-
-                // Task Scheduler XML: runs at logon with highest privileges (bypasses UAC)
                 string xmlPath = Path.Combine(Path.GetTempPath(), "ThermoSync_Task.xml");
                 var xml = new XDocument(
                     new XDeclaration("1.0", "UTF-16", null),
@@ -107,19 +117,30 @@ public partial class MainWindow
                                 new XElement(XName.Get("WorkingDirectory", ns), Path.GetDirectoryName(exePath) ?? "")))));
 
                 xml.Save(xmlPath);
-
                 var psi = new ProcessStartInfo("schtasks.exe",
                     $"/create /tn \"{TaskName}\" /xml \"{xmlPath}\" /f")
                 { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true };
                 using var p = Process.Start(psi);
                 p?.WaitForExit(5000);
-
                 try { File.Delete(xmlPath); } catch { }
             }
             catch { }
         }
         else
         {
+            // Remove Run key and StartupApproved entry
+            try
+            {
+                using var runKey = Registry.CurrentUser.OpenSubKey(RunRegistryKey, true);
+                runKey?.DeleteValue(AppRunName, false);
+
+                const string approvedKey = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
+                using var approved = Registry.CurrentUser.OpenSubKey(approvedKey, true);
+                approved?.DeleteValue(AppRunName, false);
+            }
+            catch { }
+
+            // Remove Task Scheduler entry
             try
             {
                 var psi = new ProcessStartInfo("schtasks.exe", $"/delete /tn \"{TaskName}\" /f")

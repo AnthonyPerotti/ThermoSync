@@ -1,4 +1,4 @@
-# ThermoSync
+﻿# ThermoSync
 
 ThermoSync e um utilitario de diagnostico, telemetria em tempo real, benchmarking e otimizacao de hardware para o sistema operacional Windows. O aplicativo e desenvolvido em C# com WPF (.NET 8) e opera diretamente sobre subsistemas de baixo nivel do sistema.
 
@@ -18,7 +18,7 @@ O software divide suas funcoes em modulos especializados:
 - **Gerenciamento PWM (`Services/FanControlService.cs`):** Controle direto de curva e velocidade de ventiladores de placa-mae e GPU suportados via interfaces `IControl`.
 - **Perfis Termicos Dinamicos:** Modos Automatico, Silencioso (Quiet), Equilibrado (Balanced), Desempenho (Performance), Extremo (100% PWM), Manual (Fixo com slider percentual) e Curva Customizada.
 - **Histerese Termica e Amortecimento Acustico:** Histerese configuravel (padrao 3 C) e rampa suave de desaceleracao (ramp-down amortecido) para evitar aceleracoes bruscas (fan revving) em limiares de temperatura, com resposta imediata para subidas termicas.
-- **Watchdog de Ventoinhas Travadas:** Monitoramento de seguranca que detecta falhas mecanicas ou bloqueios fisicos quando o comando PWM permanece acima de 35% com rotacao nula (0 RPM) por 5 ciclos consecutivos.
+- **Watchdog de Ventoinhas Travadas:** Monitoramento de seguranca que detecta falhas mecanicas ou bloqueios fisicos quando o comando PWM permanece acima de 35% com rotacao nula (0 RPM) por 5 ciclos consecutivos, com notificacao tray balloon no Windows alertando o usuario sobre a ventoinha afetada.
 - **Curva Customizada via Software:** Calibracao de 4 pontos termicos PWM (35 C a 85 C) com selecao de sensor de referencia (CPU, GPU ou o maior entre ambos) e interpolacao linear continua.
 - **Perfis Vinculados a Jogos (Per-Game Profiles):** Aplicacao e ajuste continuo de curva de refrigeracao especifica ao detectar a execucao do jogo (tanto pelo launcher integrado quanto por inicializacao externa via Steam/Epic/desktop) com restauracao confiavel do perfil global ao encerrar a partida.
 
@@ -60,7 +60,7 @@ O software divide suas funcoes em modulos especializados:
 - **Exportador Prometheus (/metrics):** Servidor HTTP interno assincrono expondo telemetria completa em formato OpenMetrics na porta 9182 (temperaturas, consumo eletrico em Watts, clocks, uso de VRAM/RAM, saude S.M.A.R.T. e carga dos discos, estados de throttling e FPS de jogos).
 - **Dashboard Grafana Provisionado (`homelab/grafana_dashboard.json`):** Painel Grafana pronto para importacao com gauges termicos de CPU, GPU, Hotspot e unidades de disco, integracao de potencia em Watts, alertas visuais de corte por temperatura ou energia e frequencias de operacao.
 - **Publicador MQTT:** Cliente TCP leve compativel com MQTT 3.1.1 para envio de telemetria periodica ao broker da rede local (Mosquitto), com suporte a Home Assistant MQTT Auto-Discovery.
-- **Webhooks de Alerta Critico (`AlertWebhookService.cs`):** Notificacao remota imediata para Discord, Gotify (ZimaOS/Docker) e Telegram quando limites de CPU, GPU, Hotspot ou RAM forem ultrapassados, com controle de intervalo (cooldown).
+- **Webhooks de Alerta Critico (`AlertWebhookService.cs`):** Notificacao remota imediata para Discord, Gotify (ZimaOS/Docker) e Telegram quando limites de CPU, GPU, Hotspot ou RAM forem ultrapassados, com controle de intervalo (cooldown). Alertas locais via tray balloon do Windows funcionam independentemente dos webhooks, disparando notificacoes de temperatura, RAM e ventoinha travada sem exigir configuracao de servicos remotos.
 - **Diagnostico de Rede Homelab (SYNC NET - `NetworkTest.cs`):** Medicoes de latencia ICMP, jitter, deteccao de Path MTU (padrao 1500 vs Jumbo Frames 9000) e teste de vazao TCP via protocolo compativel com iPerf3.
 
 ### 7. Atualizacao e Backup

@@ -101,10 +101,12 @@ public sealed class AppSettings
     // Modo Segundo Plano (System Tray) e Inicializacao
     public bool StartWithWindows { get; set; } = false;
     public bool MinimizeToTray { get; set; } = true;
-    public bool CloseToTray { get; set; } = true;
+    public bool CloseToTray { get; set; }
     public bool StartMinimized { get; set; }
 
-    // Webhooks de Alerta Crítico (Gotify, Discord, Telegram)
+    // Alert System (Local Tray Notifications + Webhooks)
+    public bool AlertLocalEnabled { get; set; } = true;
+    public bool AlertFanStallEnabled { get; set; } = true;
     public bool AlertGotifyEnabled { get; set; }
     public string AlertGotifyUrl { get; set; } = "";
     public string AlertGotifyToken { get; set; } = "";
@@ -120,7 +122,7 @@ public sealed class AppSettings
     public int AlertCooldownMinutes { get; set; } = 5;
 
     // SYNC FAN (Controle Ativo de Ventoinhas)
-    public string FanMode { get; set; } = "Auto"; // Auto | Quiet | Balanced | Performance | Manual | Custom
+    public string FanMode { get; set; } = "Auto"; // Auto | Quiet | Balanced | Performance | Extreme | Manual | Custom
     public int FanManualPct { get; set; } = 60;
     public string FanCurveSource { get; set; } = "Max"; // Max | Cpu | Gpu
     public int FanCurveP1Temp { get; set; } = 35;

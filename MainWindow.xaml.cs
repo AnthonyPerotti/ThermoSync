@@ -575,8 +575,10 @@ try {
 
     private void CheckAlerts()
     {
-        if (!_settings.AlertGotifyEnabled && !_settings.AlertDiscordEnabled && !_settings.AlertTelegramEnabled)
-            return;
+        bool hasWebhook = _settings.AlertGotifyEnabled || _settings.AlertDiscordEnabled || _settings.AlertTelegramEnabled;
+        bool hasLocal = _settings.AlertLocalEnabled && _tray != null;
+
+        if (!hasWebhook && !hasLocal) return;
 
         float? cpuTemp = _monitor.CpuTemperature;
         float? gpuTemp = MainGpuTemp();
@@ -591,23 +593,32 @@ try {
 
         if (cpuTemp > _settings.AlertThresholdCpuTemp && _alerts.ShouldAlert("CPU_TEMP", _settings.AlertCooldownMinutes))
         {
-            var alert = new AlertNotification("CPU", "CRITICAL", string.IsNullOrWhiteSpace(_cpuName) ? "Processador" : _cpuName, "Temperatura da CPU", cpuTemp.Value, _settings.AlertThresholdCpuTemp, "°C", game);
-            _ = _alerts.DispatchAlertAsync(alert);
-            _tray?.ShowBalloon("Alerta Crítico: CPU", $"A CPU atingiu {cpuTemp.Value:0.#} °C (limite: {_settings.AlertThresholdCpuTemp:0.#} °C)", 3);
+            if (hasWebhook)
+            {
+                var alert = new AlertNotification("CPU", "CRITICAL", string.IsNullOrWhiteSpace(_cpuName) ? "Processador" : _cpuName, "Temperatura da CPU", cpuTemp.Value, _settings.AlertThresholdCpuTemp, "°C", game);
+                _ = _alerts.DispatchAlertAsync(alert);
+            }
+            if (hasLocal) _tray!.ShowBalloon("Alerta Crítico: CPU", $"A CPU atingiu {cpuTemp.Value:0.#} °C (limite: {_settings.AlertThresholdCpuTemp:0.#} °C)", 3);
         }
 
         if (gpuTemp > _settings.AlertThresholdGpuTemp && _alerts.ShouldAlert("GPU_TEMP", _settings.AlertCooldownMinutes))
         {
-            var alert = new AlertNotification("GPU", "CRITICAL", string.IsNullOrWhiteSpace(_gpuName) ? "Placa de Vídeo" : _gpuName, "Temperatura da GPU", gpuTemp.Value, _settings.AlertThresholdGpuTemp, "°C", game);
-            _ = _alerts.DispatchAlertAsync(alert);
-            _tray?.ShowBalloon("Alerta Crítico: GPU", $"A GPU atingiu {gpuTemp.Value:0.#} °C (limite: {_settings.AlertThresholdGpuTemp:0.#} °C)", 3);
+            if (hasWebhook)
+            {
+                var alert = new AlertNotification("GPU", "CRITICAL", string.IsNullOrWhiteSpace(_gpuName) ? "Placa de Vídeo" : _gpuName, "Temperatura da GPU", gpuTemp.Value, _settings.AlertThresholdGpuTemp, "°C", game);
+                _ = _alerts.DispatchAlertAsync(alert);
+            }
+            if (hasLocal) _tray!.ShowBalloon("Alerta Crítico: GPU", $"A GPU atingiu {gpuTemp.Value:0.#} °C (limite: {_settings.AlertThresholdGpuTemp:0.#} °C)", 3);
         }
 
         if (hotspot > _settings.AlertThresholdGpuHotspot && _alerts.ShouldAlert("GPU_HOTSPOT", _settings.AlertCooldownMinutes))
         {
-            var alert = new AlertNotification("GPU", "CRITICAL", string.IsNullOrWhiteSpace(_gpuName) ? "Placa de Vídeo" : _gpuName, "Hotspot da GPU", hotspot.Value, _settings.AlertThresholdGpuHotspot, "°C", game);
-            _ = _alerts.DispatchAlertAsync(alert);
-            _tray?.ShowBalloon("Alerta: Hotspot da GPU", $"O Hotspot da GPU atingiu {hotspot.Value:0.#} °C (limite: {_settings.AlertThresholdGpuHotspot:0.#} °C)", 3);
+            if (hasWebhook)
+            {
+                var alert = new AlertNotification("GPU", "CRITICAL", string.IsNullOrWhiteSpace(_gpuName) ? "Placa de Vídeo" : _gpuName, "Hotspot da GPU", hotspot.Value, _settings.AlertThresholdGpuHotspot, "°C", game);
+                _ = _alerts.DispatchAlertAsync(alert);
+            }
+            if (hasLocal) _tray!.ShowBalloon("Alerta: Hotspot da GPU", $"O Hotspot da GPU atingiu {hotspot.Value:0.#} °C (limite: {_settings.AlertThresholdGpuHotspot:0.#} °C)", 3);
         }
 
         var (totalRam, availRam) = Optimizer.MemoryStatus();
@@ -616,10 +627,37 @@ try {
             double ramPct = ((double)(totalRam - availRam) / totalRam) * 100.0;
             if (ramPct > _settings.AlertThresholdRamPct && _alerts.ShouldAlert("RAM_USAGE", _settings.AlertCooldownMinutes))
             {
-                var alert = new AlertNotification("RAM", "WARNING", "Memória RAM", "Uso de Memória", ramPct, _settings.AlertThresholdRamPct, "%", game);
-                _ = _alerts.DispatchAlertAsync(alert);
-                _tray?.ShowBalloon("Alerta: Uso de RAM Elevado", $"O uso de memória atingiu {ramPct:0.#}% (limite: {_settings.AlertThresholdRamPct:0.#}%)", 2);
+                if (hasWebhook)
+                {
+                    var alert = new AlertNotification("RAM", "WARNING", "Memória RAM", "Uso de Memória", ramPct, _settings.AlertThresholdRamPct, "%", game);
+                    _ = _alerts.DispatchAlertAsync(alert);
+                }
+                if (hasLocal) _tray!.ShowBalloon("Alerta: Uso de RAM Elevado", $"O uso de memória atingiu {ramPct:0.#}% (limite: {_settings.AlertThresholdRamPct:0.#}%)", 2);
             }
+        }
+
+        // Fan stall detection (runs every tick regardless of fan page visibility)
+        if (_settings.AlertFanStallEnabled) CheckFanStallAlerts(hasWebhook, hasLocal, game);
+    }
+
+    private void CheckFanStallAlerts(bool hasWebhook, bool hasLocal, string? game)
+    {
+        _fans.UpdateValues();
+        foreach (var fan in _fans.Fans)
+        {
+            if (!fan.IsStalled) continue;
+            string key = $"FAN_STALL_{fan.Id}";
+            if (!_alerts.ShouldAlert(key, _settings.AlertCooldownMinutes)) continue;
+
+            string fanName = fan.Name ?? "Ventoinha";
+            string msg = $"{fanName} com 0 RPM e PWM em {fan.ControlPercent:0}%. Verifique possível defeito mecânico ou bloqueio.";
+
+            if (hasWebhook)
+            {
+                var alert = new AlertNotification("FAN", "WARNING", fanName, "Ventoinha Travada", 0, 35, "RPM", game);
+                _ = _alerts.DispatchAlertAsync(alert);
+            }
+            if (hasLocal) _tray!.ShowBalloon($"Alerta: {fanName} Parada", msg, 3);
         }
     }
 
