@@ -1,5 +1,18 @@
 # Registro de Mudancas - ThermoSync
 
+## Versao 1.6.3
+
+### Perfil Extremo para Ventoinhas a 100% (SYNC FAN / SYNC GAMES)
+- Implementado o tratamento do perfil `Extreme` em `FanControlService.cs`. O perfil forca imediatamente 100% de modulacao PWM em todas as ventoinhas controlaveis da placa-mae e placa de video.
+- Integrado ao seletor de perfil termico de jogos (`LFanPanel`) no SYNC GAMES, garantindo refrigeracao maxima continua durante partidas competitivas.
+
+### Restauracao da Exibicao no Gerenciador de Tarefas (Inicializacao com o Windows)
+- Implementado registro duplo de inicializacao em `MainWindow.Settings.cs`:
+  1. Chave de registro `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` e declaracao em `StartupApproved\Run`: exibe confiavelmente o ThermoSync na aba "Aplicativos de Inicializacao" do Gerenciador de Tarefas do Windows, com status Habilitado.
+  2. Tarefa agendada via Task Scheduler (`schtasks.exe` com `RunLevel: HighestAvailable`): garante a inicializacao real com privilegios elevados de administrador no logon, sem bloqueio silencioso do UAC.
+- Remocao sincronizada de ambos os registros ao desmarcar a opcao de inicializacao.
+
+
 ## Versao 1.6.2
 
 ### Controle Automatico de Ventoinhas por Jogo (SYNC FAN / SYNC GAMES)

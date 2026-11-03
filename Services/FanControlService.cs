@@ -263,6 +263,14 @@ public sealed class FanControlService : IDisposable
                             fan.ControlPercent = perfTarget;
                             fan.Mode = "Desempenho";
                             break;
+
+                        case "extreme":
+                            // Extreme profile: forces all fans to 100% full speed immediately
+                            fan.Control.SetSoftware(100f);
+                            fan.ControlPercent = 100f;
+                            fan.Mode = "Extremo";
+                            _lastAppliedPwm[fan.Id] = 100f;
+                            break;
                     }
                 }
                 catch (Exception ex)

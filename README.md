@@ -16,7 +16,7 @@ O software divide suas funcoes em modulos especializados:
 
 ### 2. Controle Ativo de Ventoinhas (SYNC FAN)
 - **Gerenciamento PWM (`Services/FanControlService.cs`):** Controle direto de curva e velocidade de ventiladores de placa-mae e GPU suportados via interfaces `IControl`.
-- **Perfis Termicos Dinamicos:** Modos Automatico, Silencioso (Quiet), Equilibrado (Balanced), Desempenho (Performance), Manual (Fixo com slider percentual) e Curva Customizada.
+- **Perfis Termicos Dinamicos:** Modos Automatico, Silencioso (Quiet), Equilibrado (Balanced), Desempenho (Performance), Extremo (100% PWM), Manual (Fixo com slider percentual) e Curva Customizada.
 - **Histerese Termica e Amortecimento Acustico:** Histerese configuravel (padrao 3 C) e rampa suave de desaceleracao (ramp-down amortecido) para evitar aceleracoes bruscas (fan revving) em limiares de temperatura, com resposta imediata para subidas termicas.
 - **Watchdog de Ventoinhas Travadas:** Monitoramento de seguranca que detecta falhas mecanicas ou bloqueios fisicos quando o comando PWM permanece acima de 35% com rotacao nula (0 RPM) por 5 ciclos consecutivos.
 - **Curva Customizada via Software:** Calibracao de 4 pontos termicos PWM (35 C a 85 C) com selecao de sensor de referencia (CPU, GPU ou o maior entre ambos) e interpolacao linear continua.
@@ -47,7 +47,7 @@ O software divide suas funcoes em modulos especializados:
  (SYNC OPTIMIZE / SYNC TOOLS)
 - **Gerenciamento de Memoria (`Services/Optimizer.cs`):** Chamadas diretas as APIs nativas do Windows (`NtSetSystemInformation` e esvaziamento de Working Set) para liberacao de listas de paginas em espera (Standby List) e processos ociosos.
 - **Ajustes de Sistema Operacional (`Services/WindowsTweaks.cs`):** Controle de chaves de registro para ativacao de Hardware Accelerated GPU Scheduling (HAGS), Game Mode, desativacao de Game DVR e ajuste de fila de resposta de entrada do mouse.
-- **Inicializacao do Windows com Previlegios Elevados (`MainWindow.Settings.cs`):** Registro de inicializacao com o Windows via Agendador de Tarefas (`schtasks.exe`) com XML v1.2 em nivel `HighestAvailable`, contornando o bloqueio silencioso do UAC no logon do usuario.
+- **Inicializacao com o Windows e Gerenciador de Tarefas (`MainWindow.Settings.cs`):** Registro duplo via Agendador de Tarefas (`schtasks.exe` em nivel `HighestAvailable`) para contornar o bloqueio de UAC em modo elevado, sincronizado com a chave `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` para exibicao oficial na aba Aplicativos de Inicializacao do Gerenciador de Tarefas.
 - **Instalador de Aplicativos (`Utils/AppInstaller.cs`):** Automacao de instalacao via Windows Package Manager (winget) com resolucao de caminhos absolutos e suporte a instalacao sem conexao.
 - **Relatorios de Diagnostico (`Utils/ReportBuilder.cs`):** Exportacao em HTML visual escuro, Markdown padronizado (.md) para documentacao, JSON estruturado e codigo LaTeX com tabelas booktabs/tabularx e graficos de telemetria e benchmark compilaveis via pgfplots/siunitx.
 
