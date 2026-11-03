@@ -645,20 +645,39 @@ try {
         _fans.UpdateValues();
         foreach (var fan in _fans.Fans)
         {
+            // Only alert for CPU fans; ignore chassis/system fans (SysFan, etc.)
+            if (!IsCpuFan(fan)) continue;
             if (!fan.IsStalled) continue;
             string key = $"FAN_STALL_{fan.Id}";
             if (!_alerts.ShouldAlert(key, _settings.AlertCooldownMinutes)) continue;
 
-            string fanName = fan.Name ?? "Ventoinha";
+            string fanName = string.IsNullOrWhiteSpace(fan.Name) ? "Ventoinha da CPU" : fan.Name;
             string msg = $"{fanName} com 0 RPM e PWM em {fan.ControlPercent:0}%. Verifique possível defeito mecânico ou bloqueio.";
 
             if (hasWebhook)
             {
-                var alert = new AlertNotification("FAN", "WARNING", fanName, "Ventoinha Travada", 0, 35, "RPM", game);
+                var alert = new AlertNotification("CPU_FAN", "WARNING", fanName, "Ventoinha da CPU Travada", 0, 35, "RPM", game);
                 _ = _alerts.DispatchAlertAsync(alert);
             }
             if (hasLocal) _tray!.ShowBalloon($"Alerta: {fanName} Parada", msg, 3);
         }
+    }
+
+    private static bool IsCpuFan(FanDeviceVm fan)
+    {
+        string name = fan.Name ?? "";
+        string id = fan.Id ?? "";
+
+        // Must explicitly reference CPU
+        bool hasCpu = name.Contains("CPU", StringComparison.OrdinalIgnoreCase) ||
+                      id.Contains("cpu", StringComparison.OrdinalIgnoreCase);
+
+        // Exclude GPU fans that might have GPU or graphics hardware names
+        bool isGpu = name.Contains("GPU", StringComparison.OrdinalIgnoreCase) ||
+                     (fan.HardwareName?.Contains("NVIDIA", StringComparison.OrdinalIgnoreCase) == true) ||
+                     (fan.HardwareName?.Contains("Radeon", StringComparison.OrdinalIgnoreCase) == true);
+
+        return hasCpu && !isGpu;
     }
 
     private float? MainGpuClock()

@@ -138,7 +138,7 @@ public sealed class FanControlService : IDisposable
                 }
 
                 // Stall detection: PWM commanded above threshold but RPM reads zero
-                if (fan.HasControl && fan.ControlPercent >= StallMinPwm && fan.Rpm is 0 or null)
+                if (fan.HasControl && fan.ControlPercent >= StallMinPwm && fan.Rpm == 0f)
                 {
                     fan.StallCycleCount++;
                     if (fan.StallCycleCount >= StallThresholdCycles && !fan.IsStalled)

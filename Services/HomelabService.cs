@@ -263,7 +263,7 @@ else if (path.Equals("/api/health", StringComparison.OrdinalIgnoreCase))
                 {
                     status = "ok",
                     service = "ThermoSync",
-                    version = "1.6.5",
+                    version = "1.6.6",
                     timestamp = DateTime.UtcNow
                 };
                 string json = JsonSerializer.Serialize(health);

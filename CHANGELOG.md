@@ -1,5 +1,11 @@
 ﻿# Registro de Mudancas - ThermoSync
 
+## Versao 1.6.6
+
+### Filtragem Estrita do Alerta de Ventoinha Parada para CPU Fan (SYNC FAN / SETTINGS)
+- Corrigida a deteccao de falha mecanica/parada para focar exclusivamente na ventoinha do processador (`CPU Fan`). O algoritmo agora ignora ventoinhas de chassi, gabinete e conectores auxiliares da placa-mae (`Sys Fan`, `Chassis Fan`, etc.), eliminando falsos positivos na bandeja.
+- Ajustado o watchdog do `FanControlService.cs`: conectores virtuais ou headers sem tacometro de medicao de rotacao (`RPM is null`) nao sao mais marcados como travados. O alerta agora exige que o sensor exista e reporte comprovadamente `0 RPM` com comando PWM ativo.
+
 ## Versao 1.6.5
 
 ### Perfis Extremo e Zero Fan no SYNC FAN
